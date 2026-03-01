@@ -147,6 +147,8 @@ devdash/
 │   ├── services/           # 🔧 Shell command abstraction
 │   │   ├── exec.go         #     RunCommand wrapper
 │   │   └── parser.go       #     Line parsing utilities
+│   ├── logs/               # 🪵 Structured file logging
+│   │   └── logs.go         #     Logger and file configuration
 │   ├── state/              # 💾 Centralized state management
 │   │   └── state.go        #     Dashboard struct + result types
 │   └── ui/                 # 🎨 K9s-inspired rendering
@@ -197,6 +199,22 @@ go test ./... -short
 ```
 
 Currently **23 unit tests** covering all module parsers plus integration tests for binary size measurement.
+
+---
+
+## 🪵 Logs & Troubleshooting
+
+When command/module errors happen, **devdash** writes diagnostic entries to a local file named `.devdash.log` in the analyzed project directory.
+
+```bash
+# Follow logs in real time
+tail -f .devdash.log
+
+# View latest entries
+tail -n 100 .devdash.log
+```
+
+Log entries include timestamp, level, failed command, execution duration, and truncated `stdout/stderr` snippets to speed up debugging.
 
 ---
 

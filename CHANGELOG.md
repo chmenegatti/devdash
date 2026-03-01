@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ⚡ **Async execution** — All commands run via `tea.Cmd` goroutines, never blocking the UI
 - 🧪 **23 unit tests** — Comprehensive parser tests for all modules
 - 📄 Open source setup — README, LICENSE (MIT), CONTRIBUTING, CODE_OF_CONDUCT, GitHub templates, CI workflow
+- 🪵 **Error Logging** — Persistent diagnostics in `.devdash.log` (failed commands, module/report errors, timestamped entries)
 
 ---
 
