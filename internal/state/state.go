@@ -93,6 +93,16 @@ type GitResult struct {
 	Err      string
 }
 
+// ProfileResult holds CPU profiling information and inline flamegraph output.
+type ProfileResult struct {
+	Status        Status
+	TargetPackage string
+	TotalSamples  int64
+	SampleUnit    string
+	Flamegraph    string
+	Err           string
+}
+
 // Dashboard is the central state container for the entire application.
 type Dashboard struct {
 	ProjectDir  string
@@ -107,6 +117,7 @@ type Dashboard struct {
 	Binary     BinaryResult
 	Deps       DepsResult
 	Git        GitResult
+	Profile    ProfileResult
 }
 
 // New creates a new Dashboard state for the given project directory.

@@ -51,6 +51,11 @@ type gitResultMsg struct {
 	result state.GitResult
 }
 
+// profileResultMsg carries the result of a completed CPU profile run.
+type profileResultMsg struct {
+	result state.ProfileResult
+}
+
 // reportResultMsg carries the result of markdown report generation.
 type reportResultMsg struct {
 	path string
@@ -61,12 +66,13 @@ type reportResultMsg struct {
 type viewMode int
 
 const (
-	viewDashboard   viewMode = iota // Main dashboard
-	viewTestsDetail                 // Full test output
-	viewLintDetail                  // Full lint output
-	viewBenchDetail                 // Full benchmark output
-	viewDepsDetail                  // Full dependency list
-	viewGitDetail                   // Full git status
+	viewDashboard     viewMode = iota // Main dashboard
+	viewTestsDetail                   // Full test output
+	viewLintDetail                    // Full lint output
+	viewBenchDetail                   // Full benchmark output
+	viewDepsDetail                    // Full dependency list
+	viewGitDetail                     // Full git status
+	viewProfileDetail                 // Full inline flamegraph
 )
 
 // Model is the top-level Bubble Tea model for the dashboard.
@@ -139,6 +145,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		logModuleError("git", msg.result.Status, msg.result.Err)
 		m.syncDetailViewport()
 		return m, nil
+	case profileResultMsg:
+		m.state.Profile = msg.result
+		logModuleError("profile", msg.result.Status, msg.result.Err)
+		m.syncDetailViewport()
+		return m, nil
 	case reportResultMsg:
 		if msg.err != nil {
 			logs.Errorf("report generation failed: %v", msg.err)
@@ -172,6 +183,9 @@ func (m Model) View() string {
 		detail := m.currentDetailContent()
 		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.state.Version, m.width, m.height)
 	case viewGitDetail:
+		detail := m.currentDetailContent()
+		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.state.Version, m.width, m.height)
+	case viewProfileDetail:
 		detail := m.currentDetailContent()
 		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.state.Version, m.width, m.height)
 	default:
@@ -245,6 +259,13 @@ func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.view = viewDepsDetail
 		m.syncDetailViewport()
 		return m, nil
+	case "p":
+		m.state.Profile.Status = state.StatusRunning
+		return m, m.runProfileCmd()
+	case "P":
+		m.view = viewProfileDetail
+		m.syncDetailViewport()
+		return m, nil
 	case "m":
 		m.state.Notice = "🛠️ Gerando relatório Markdown..."
 		return m, m.runReportCmd()
@@ -257,6 +278,7 @@ func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.state.Binary = state.BinaryResult{}
 		m.state.Deps = state.DepsResult{}
 		m.state.Git = state.GitResult{}
+		m.state.Profile = state.ProfileResult{}
 		m.state.Notice = ""
 		return m, nil
 	}
@@ -328,6 +350,15 @@ func (m Model) runGitCmd() tea.Cmd {
 	}
 }
 
+// runProfileCmd returns a tea.Cmd that runs CPU profiling and produces an inline flamegraph.
+func (m Model) runProfileCmd() tea.Cmd {
+	dir := m.state.ProjectDir
+	return func() tea.Msg {
+		result := modules.RunCPUProfile(dir)
+		return profileResultMsg{result: result}
+	}
+}
+
 // runReportCmd returns a tea.Cmd that exports a markdown report from current dashboard state.
 func (m Model) runReportCmd() tea.Cmd {
 	projectDir := m.state.ProjectDir
@@ -391,6 +422,8 @@ func (m Model) currentDetailContent() ui.DetailContent {
 		return ui.BuildDepsDetail(m.state, m.width)
 	case viewGitDetail:
 		return ui.BuildGitDetail(m.state, m.width)
+	case viewProfileDetail:
+		return ui.BuildProfileDetail(m.state, m.width)
 	default:
 		return ui.DetailContent{}
 	}

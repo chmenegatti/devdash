@@ -42,8 +42,9 @@
 | 📦 **Binary Size** | `s` | Build and measure compiled binary size |
 | 🌿 **Git Status** | `g` | Show modified/added/deleted/untracked files with colored indicators |
 | 📚 **Dependencies** | `d` | List all module dependencies via `go list -m all` |
+| 🔥 **CPU Profile Flamegraph** | `p` | Run `go test -cpuprofile` and render an inline Unicode flamegraph |
 | 📝 **Markdown Report** | `m` | Generate a complete dashboard report in elegant Markdown with emojis |
-| 🔎 **Detail Views** | `Shift+Key` | Full-screen output for tests, lint, benchmarks, git & deps |
+| 🔎 **Detail Views** | `Shift+Key` | Full-screen output for tests, lint, benchmarks, git, deps & flamegraph |
 
 ### 🎨 Design Philosophy
 
@@ -145,6 +146,7 @@ devdash
 | `s` | Measure binary size |
 | `g` | Check git status |
 | `d` | List dependencies |
+| `p` | Run CPU profiling + inline flamegraph |
 | `m` | Generate Markdown report |
 | `r` | Reset all panels |
 | `q` | Quit |
@@ -158,6 +160,7 @@ devdash
 | `B` | Full benchmark table |
 | `G` | Full git status |
 | `D` | Full dependency list |
+| `P` | Full CPU flamegraph |
 | `Backspace` | Back to dashboard |
 
 ---
@@ -186,6 +189,7 @@ devdash/
 │   │   ├── benchmarks.go   #     go test -bench parser
 │   │   ├── binary.go       #     Binary size measurement
 │   │   ├── deps.go         #     go list -m all parser
+│   │   ├── profile.go      #     CPU profiling + inline flamegraph builder
 │   │   ├── report.go       #     Markdown report generation
 │   │   └── gitstatus.go    #     git status --short parser
 │   ├── services/           # 🔧 Shell command abstraction
@@ -222,7 +226,8 @@ devdash/
 |---------|---------|
 | [Bubble Tea](https://github.com/charmbracelet/bubbletea) | Terminal UI framework (Elm-style) |
 | [Lip Gloss](https://github.com/charmbracelet/lipgloss) | Styling, layout & colors |
-| [Bubbles](https://github.com/charmbracelet/bubbles) | UI components (available for extensions) |
+| [Bubbles](https://github.com/charmbracelet/bubbles) | Viewport for scrollable detail outputs |
+| [Google pprof](https://github.com/google/pprof) | CPU profile parsing for inline flamegraph rendering |
 
 ---
 
@@ -270,7 +275,7 @@ We welcome contributions for any of these planned features! See [CONTRIBUTING.md
 - [x] 📝 **Markdown report export** — Generate a complete dashboard report via keyboard shortcut
 - [x] 📜 **Scrollable panels** — Scroll through long outputs in detail views
 - [ ] 🎛️ **Config file** — `.devdash.yaml` for custom panel layout, colors, and shortcuts
-- [ ] 📈 **Flame graphs** — pprof integration with inline visualization
+- [x] 📈 **Flame graphs** — pprof integration with inline Unicode visualization
 - [ ] 🐳 **Docker support** — Build & run inside containers
 - [ ] 🔌 **Plugin system** — Custom panels via Go plugins or external scripts
 - [ ] 🌐 **Remote mode** — Monitor CI/CD pipelines via SSH or API

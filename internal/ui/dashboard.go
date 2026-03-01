@@ -32,6 +32,7 @@ func RenderDashboard(ds *state.Dashboard, width, height int) string {
 		renderBinarySection,
 		renderGitSection,
 		renderDepsSection,
+		renderProfileSection,
 	}
 
 	cols, panelW := dashboardGridConfig(width, height, len(renderers))
@@ -64,6 +65,7 @@ func RenderDashboard(ds *state.Dashboard, width, height int) string {
 		{Key: "s", Desc: "build"},
 		{Key: "g", Desc: "git"},
 		{Key: "d", Desc: "deps"},
+		{Key: "p", Desc: "profile"},
 		{Key: "m", Desc: "report"},
 		{Key: "r", Desc: "reset"},
 		{Key: "q", Desc: "quit"},
@@ -74,6 +76,7 @@ func RenderDashboard(ds *state.Dashboard, width, height int) string {
 		{Key: "B", Desc: "bench detail"},
 		{Key: "G", Desc: "git detail"},
 		{Key: "D", Desc: "deps detail"},
+		{Key: "P", Desc: "profile detail"},
 	}, width)
 
 	// ── Compose ──────────────────────────────────────────────────
@@ -219,6 +222,14 @@ func renderStatsRow(ds *state.Dashboard, width int) string {
 	// Deps
 	chips = append(chips, statWithDot("Deps", ds.Deps.Status, func() string {
 		return fmt.Sprintf("%d", len(ds.Deps.Deps))
+	}))
+
+	// Profile
+	chips = append(chips, statWithDot("Profile", ds.Profile.Status, func() string {
+		if ds.Profile.TotalSamples > 0 {
+			return fmt.Sprintf("%d", ds.Profile.TotalSamples)
+		}
+		return "ok"
 	}))
 
 	return "  " + strings.Join(chips, "    ")
@@ -479,6 +490,33 @@ func renderDepsSection(ds *state.Dashboard, w int) string {
 		body = "  " + StatusIdle.Render("○ idle — press <d>")
 	}
 	return RenderSection("Dependencies", body, w)
+}
+
+func renderProfileSection(ds *state.Dashboard, w int) string {
+	var body string
+	switch ds.Profile.Status {
+	case state.StatusDone:
+		header := fmt.Sprintf("  %s %s",
+			StatusPass.Render("✓ flamegraph ready"),
+			StatChip("pkg", truncate(ds.Profile.TargetPackage, w-24)),
+		)
+		preview := strings.Split(strings.TrimSpace(ds.Profile.Flamegraph), "\n")
+		if len(preview) > 4 {
+			preview = preview[:4]
+		}
+		if len(preview) == 0 {
+			body = header
+		} else {
+			body = header + "\n" + strings.Join(preview, "\n")
+		}
+	case state.StatusRunning:
+		body = "  " + StatusWarn.Render("◍ Profiling with go test -cpuprofile…")
+	case state.StatusError:
+		body = "  " + StatusFail.Render("● Error: "+truncate(ds.Profile.Err, w-10))
+	default:
+		body = "  " + StatusIdle.Render("○ idle — press <p>")
+	}
+	return RenderSection("CPU Profile", body, w)
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

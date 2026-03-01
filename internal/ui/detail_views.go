@@ -334,3 +334,46 @@ func BuildGitDetail(ds *state.Dashboard, width int) DetailContent {
 		Body:    body,
 	}
 }
+
+// ── Profile detail ──────────────────────────────────────────────────────────
+
+// RenderProfileDetail renders a full-screen inline flamegraph view.
+func RenderProfileDetail(ds *state.Dashboard, width, height int) string {
+	detail := BuildProfileDetail(ds, width)
+	return RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, detail.Body, ds.Version, width, height)
+}
+
+// BuildProfileDetail builds summary and body content for profiling detail view.
+func BuildProfileDetail(ds *state.Dashboard, width int) DetailContent {
+	var summary string
+	switch ds.Profile.Status {
+	case state.StatusDone:
+		summary = fmt.Sprintf("  %s  %s  %s",
+			StatusPass.Render("✓ Profile complete"),
+			StatChip("target", truncate(ds.Profile.TargetPackage, clamp(width/2, 16, 60))),
+			StatChip("samples", fmt.Sprintf("%d", ds.Profile.TotalSamples)),
+		)
+	case state.StatusRunning:
+		summary = "  " + StatusWarn.Render("◍ Profiling with go test -cpuprofile…")
+	case state.StatusError:
+		summary = "  " + StatusFail.Render("● Error: "+ds.Profile.Err)
+	default:
+		summary = "  " + StatusIdle.Render("○ Press <p> to generate an inline flamegraph.")
+	}
+
+	body := strings.TrimSpace(ds.Profile.Flamegraph)
+	if body == "" {
+		if ds.Profile.Status == state.StatusError {
+			body = StatusFail.Render(ds.Profile.Err)
+		} else {
+			body = StatusIdle.Render("(no flamegraph yet)")
+		}
+	}
+
+	return DetailContent{
+		Title:   "CPU Profile",
+		Crumb:   "Profile",
+		Summary: summary,
+		Body:    body,
+	}
+}
