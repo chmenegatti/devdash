@@ -122,10 +122,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case reportResultMsg:
 		if msg.err != nil {
-			return m, tea.Printf("❌ Erro ao gerar relatório: %v", msg.err)
+			m.state.Notice = "❌ Erro ao gerar relatório: " + msg.err.Error()
+			return m, nil
 		}
 		fileName := filepath.Base(msg.path)
-		return m, tea.Printf("📝 Relatório gerado: %s (%s)", fileName, msg.path)
+		m.state.Notice = "📝 Relatório gerado: " + fileName + " (" + msg.path + ")"
+		return m, nil
 	}
 	return m, nil
 }
@@ -212,6 +214,7 @@ func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.view = viewDepsDetail
 		return m, nil
 	case "m":
+		m.state.Notice = "🛠️ Gerando relatório Markdown..."
 		return m, m.runReportCmd()
 	case "r":
 		// refresh - reset all to idle
@@ -222,6 +225,7 @@ func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.state.Binary = state.BinaryResult{}
 		m.state.Deps = state.DepsResult{}
 		m.state.Git = state.GitResult{}
+		m.state.Notice = ""
 		return m, nil
 	}
 	return m, nil

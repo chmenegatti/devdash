@@ -21,6 +21,7 @@ func RenderDashboard(ds *state.Dashboard, width, height int) string {
 
 	// ── Stat tiles row (compact metrics) ─────────────────────────
 	statsRow := renderStatsRow(ds, width)
+	noticeLine := renderNotice(ds, width)
 
 	// ── Main content: responsive uniform grid ────────────────────
 	renderers := []func(*state.Dashboard, int) string{
@@ -83,12 +84,32 @@ func RenderDashboard(ds *state.Dashboard, width, height int) string {
 		crumbs,
 		sep,
 		statsRow,
+		noticeLine,
 		sep,
 		content,
 		sep,
 		cmdBar1,
 		cmdBar2,
 	)
+}
+
+func renderNotice(ds *state.Dashboard, width int) string {
+	if strings.TrimSpace(ds.Notice) == "" {
+		return ""
+	}
+
+	style := lipgloss.NewStyle().
+		Width(width).
+		Padding(0, 1).
+		Foreground(ColorFg)
+
+	if strings.HasPrefix(ds.Notice, "❌") {
+		style = style.Foreground(ColorDanger)
+	} else if strings.HasPrefix(ds.Notice, "📝") || strings.HasPrefix(ds.Notice, "🛠️") {
+		style = style.Foreground(ColorAccent)
+	}
+
+	return style.Render(ds.Notice)
 }
 
 // dashboardGridConfig chooses a responsive panel grid based on terminal size.

@@ -97,6 +97,7 @@ type GitResult struct {
 type Dashboard struct {
 	ProjectDir  string
 	ProjectName string
+	Notice      string
 
 	Tests      TestsResult
 	Coverage   CoverageResult
