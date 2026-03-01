@@ -22,20 +22,37 @@ func RenderDashboard(ds *state.Dashboard, width, height int) string {
 	// ── Stat tiles row (compact metrics) ─────────────────────────
 	statsRow := renderStatsRow(ds, width)
 
-	// ── Main content: two-column panels ──────────────────────────
-	pw := panelWidth(width)
+	// ── Main content: responsive uniform grid ────────────────────
+	renderers := []func(*state.Dashboard, int) string{
+		renderTestsSection,
+		renderCoverageSection,
+		renderLintSection,
+		renderBenchSection,
+		renderBinarySection,
+		renderGitSection,
+		renderDepsSection,
+	}
 
-	leftCol := lipgloss.JoinVertical(lipgloss.Left,
-		renderTestsSection(ds, pw),
-		renderLintSection(ds, pw),
-		renderBenchSection(ds, pw),
-	)
-	rightCol := lipgloss.JoinVertical(lipgloss.Left,
-		renderGitSection(ds, pw),
-		renderDepsSection(ds, pw),
-	)
+	cols, panelW := dashboardGridConfig(width, height, len(renderers))
+	if cols < 1 {
+		cols = 1
+	}
 
-	content := lipgloss.JoinHorizontal(lipgloss.Top, leftCol, " ", rightCol)
+	columns := make([][]string, cols)
+	for i, render := range renderers {
+		colIdx := i % cols
+		columns[colIdx] = append(columns[colIdx], render(ds, panelW))
+	}
+
+	columnViews := make([]string, 0, cols)
+	for _, panels := range columns {
+		if len(panels) == 0 {
+			continue
+		}
+		columnViews = append(columnViews, lipgloss.JoinVertical(lipgloss.Left, panels...))
+	}
+
+	content := lipgloss.JoinHorizontal(lipgloss.Top, append([]string{}, columnViews...)...)
 
 	// ── Command bar (bottom) ─────────────────────────────────────
 	cmdBar1 := RenderCommandBar([]KeyBinding{
@@ -73,19 +90,41 @@ func RenderDashboard(ds *state.Dashboard, width, height int) string {
 	)
 }
 
-// panelWidth adapts to terminal width for two-column layout.
-func panelWidth(termWidth int) int {
+// dashboardGridConfig chooses a responsive panel grid based on terminal size.
+func dashboardGridConfig(termWidth, termHeight, panelCount int) (cols int, panelWidth int) {
 	if termWidth <= 0 {
-		return 40
+		termWidth = 120
 	}
-	pw := (termWidth - 3) / 2
-	if pw < 30 {
-		pw = 30
+	if termHeight <= 0 {
+		termHeight = 40
 	}
-	if pw > 60 {
-		pw = 60
+
+	cols = 1
+	if termWidth >= 170 {
+		cols = 3
+	} else if termWidth >= 110 {
+		cols = 2
 	}
-	return pw
+
+	// If height is tight, spread panels across more columns when possible.
+	if termHeight < 32 && termWidth >= 170 {
+		cols = 3
+	}
+
+	if cols > panelCount {
+		cols = panelCount
+	}
+
+	gap := 1
+	panelWidth = (termWidth - (cols-1)*gap) / cols
+	if panelWidth < 30 {
+		panelWidth = 30
+	}
+	if panelWidth > 58 {
+		panelWidth = 58
+	}
+
+	return cols, panelWidth
 }
 
 // ── Header ──────────────────────────────────────────────────────────────────
@@ -215,6 +254,31 @@ func renderTestsSection(ds *state.Dashboard, w int) string {
 	return RenderSection("Tests", body, w)
 }
 
+func renderCoverageSection(ds *state.Dashboard, w int) string {
+	var body string
+	switch ds.Coverage.Status {
+	case state.StatusDone:
+		pct := ds.Coverage.Percentage
+		style := StatusFail
+		if pct >= 80 {
+			style = StatusPass
+		} else if pct >= 60 {
+			style = StatusWarn
+		}
+		body = fmt.Sprintf("  %s %s",
+			style.Render(fmt.Sprintf("%.1f%%", pct)),
+			StatChip("target", "80%+"),
+		)
+	case state.StatusRunning:
+		body = "  " + StatusWarn.Render("◍ Running…")
+	case state.StatusError:
+		body = "  " + StatusFail.Render("● Error: "+truncate(ds.Coverage.Err, w-10))
+	default:
+		body = "  " + StatusIdle.Render("○ idle — press <c>")
+	}
+	return RenderSection("Coverage", body, w)
+}
+
 // ── Lint section ────────────────────────────────────────────────────────────
 
 func renderLintSection(ds *state.Dashboard, w int) string {
@@ -289,6 +353,24 @@ func renderBenchSection(ds *state.Dashboard, w int) string {
 		body = "  " + StatusIdle.Render("○ idle — press <b>")
 	}
 	return RenderSection("Benchmarks", body, w)
+}
+
+func renderBinarySection(ds *state.Dashboard, w int) string {
+	var body string
+	switch ds.Binary.Status {
+	case state.StatusDone:
+		body = fmt.Sprintf("  %s  %s",
+			StatusPass.Render(formatBytes(ds.Binary.Size)),
+			StatChip("build", "ok"),
+		)
+	case state.StatusRunning:
+		body = "  " + StatusWarn.Render("◍ Running…")
+	case state.StatusError:
+		body = "  " + StatusFail.Render("● Error: "+truncate(ds.Binary.Err, w-10))
+	default:
+		body = "  " + StatusIdle.Render("○ idle — press <s>")
+	}
+	return RenderSection("Binary", body, w)
 }
 
 // ── Git section ─────────────────────────────────────────────────────────────
