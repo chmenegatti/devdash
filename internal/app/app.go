@@ -16,6 +16,11 @@ type testsResultMsg struct {
 	result state.TestsResult
 }
 
+// coverageResultMsg carries the result of a completed coverage run.
+type coverageResultMsg struct {
+	result state.CoverageResult
+}
+
 // Model is the top-level Bubble Tea model for the dashboard.
 type Model struct {
 	state  *state.Dashboard
@@ -51,6 +56,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case testsResultMsg:
 		m.state.Tests = msg.result
 		return m, nil
+	case coverageResultMsg:
+		m.state.Coverage = msg.result
+		return m, nil
 	}
 	return m, nil
 }
@@ -75,7 +83,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.runTestsCmd()
 	case "c":
 		m.state.Coverage.Status = state.StatusRunning
-		return m, nil
+		return m, m.runCoverageCmd()
 	case "l":
 		m.state.Lint.Status = state.StatusRunning
 		return m, nil
@@ -110,5 +118,14 @@ func (m Model) runTestsCmd() tea.Cmd {
 	return func() tea.Msg {
 		result := modules.RunTests(dir)
 		return testsResultMsg{result: result}
+	}
+}
+
+// runCoverageCmd returns a tea.Cmd that runs go test -cover asynchronously.
+func (m Model) runCoverageCmd() tea.Cmd {
+	dir := m.state.ProjectDir
+	return func() tea.Msg {
+		result := modules.RunCoverage(dir)
+		return coverageResultMsg{result: result}
 	}
 }
