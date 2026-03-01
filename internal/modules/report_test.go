@@ -86,3 +86,44 @@ func TestGenerateReportFile_WritesMarkdownFile(t *testing.T) {
 		t.Fatalf("report content is missing expected title")
 	}
 }
+
+func TestExtractTestCaseResults(t *testing.T) {
+	output := strings.Join([]string{
+		"=== RUN   TestAlpha",
+		"--- PASS: TestAlpha (0.00s)",
+		"=== RUN   TestBeta",
+		"--- FAIL: TestBeta (0.00s)",
+		"FAIL",
+	}, "\n")
+
+	passed, failed := extractTestCaseResults(output)
+	if len(passed) != 1 || passed[0] != "TestAlpha" {
+		t.Fatalf("expected [TestAlpha], got %v", passed)
+	}
+	if len(failed) != 1 || failed[0] != "TestBeta" {
+		t.Fatalf("expected [TestBeta], got %v", failed)
+	}
+}
+
+func TestGenerateMarkdownReport_IncludesTestCaseIcons(t *testing.T) {
+	ds := state.Dashboard{
+		ProjectName: "devdash",
+		ProjectDir:  "/tmp/devdash",
+		Tests: state.TestsResult{
+			Status: state.StatusDone,
+			Passed: false,
+			Output: strings.Join([]string{
+				"--- PASS: TestOne (0.00s)",
+				"--- FAIL: TestTwo (0.01s)",
+			}, "\n"),
+		},
+	}
+
+	report := generateMarkdownReport(ds, time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC))
+	if !strings.Contains(report, "- ✅ TestOne") {
+		t.Fatalf("expected report to include pass icon line")
+	}
+	if !strings.Contains(report, "- ❌ TestTwo") {
+		t.Fatalf("expected report to include fail icon line")
+	}
+}

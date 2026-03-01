@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -63,9 +64,23 @@ func writeTestsSection(sb *strings.Builder, r state.TestsResult) {
 	fmt.Fprintf(sb, "- **Passed:** %t\n", r.Passed)
 	fmt.Fprintf(sb, "- **Packages:** %d\n", r.Packages)
 	fmt.Fprintf(sb, "- **Duration:** %s\n\n", r.Duration)
+	sb.WriteString("- **Validation scope:** all project packages (`go test -v -count=1 ./...`)\n\n")
 	if r.Err != "" {
 		fmt.Fprintf(sb, "> ⚠️ %s\n\n", r.Err)
 	}
+
+	passedTests, failedTests := extractTestCaseResults(r.Output)
+	if len(passedTests) > 0 || len(failedTests) > 0 {
+		sb.WriteString("### Test Cases\n\n")
+		for _, testName := range passedTests {
+			fmt.Fprintf(sb, "- ✅ %s\n", testName)
+		}
+		for _, testName := range failedTests {
+			fmt.Fprintf(sb, "- ❌ %s\n", testName)
+		}
+		sb.WriteString("\n")
+	}
+
 	if strings.TrimSpace(r.Output) != "" {
 		sb.WriteString("### Raw Output\n\n```text\n")
 		sb.WriteString(strings.TrimSpace(r.Output))
@@ -198,6 +213,28 @@ func testsSummary(r state.TestsResult) string {
 		return r.Err
 	}
 	return "No run yet"
+}
+
+func extractTestCaseResults(output string) (passed []string, failed []string) {
+	if strings.TrimSpace(output) == "" {
+		return nil, nil
+	}
+
+	passRe := regexp.MustCompile(`^--- PASS: (\S+)`)
+	failRe := regexp.MustCompile(`^--- FAIL: (\S+)`)
+
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if m := passRe.FindStringSubmatch(line); m != nil {
+			passed = append(passed, m[1])
+			continue
+		}
+		if m := failRe.FindStringSubmatch(line); m != nil {
+			failed = append(failed, m[1])
+		}
+	}
+
+	return passed, failed
 }
 
 func gitTotal(r state.GitResult) int {

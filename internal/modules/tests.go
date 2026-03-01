@@ -29,7 +29,7 @@ func RunTests(projectDir string) state.TestsResult {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	res := services.RunCommand(ctx, projectDir, "go", "test", "./...")
+	res := services.RunCommand(ctx, projectDir, "go", "test", "-v", "-count=1", "./...")
 
 	return parseTestOutput(res)
 }
