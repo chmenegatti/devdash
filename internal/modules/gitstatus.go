@@ -9,7 +9,7 @@ import (
 	"github.com/cesar/devdash/internal/state"
 )
 
-// RunGitStatus executes `git status --short` and categorises changed files.
+// RunGitStatus executes `git status --short` and categorizes changed files.
 // Blocking — call from a tea.Cmd.
 func RunGitStatus(projectDir string) state.GitResult {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -20,7 +20,7 @@ func RunGitStatus(projectDir string) state.GitResult {
 	return parseGitOutput(res)
 }
 
-// parseGitOutput categorises `git status --short` lines by their prefix.
+// parseGitOutput categorizes `git status --short` lines by their prefix.
 func parseGitOutput(res services.CommandResult) state.GitResult {
 	if res.Err != nil {
 		return state.GitResult{

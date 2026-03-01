@@ -26,7 +26,11 @@ func RunBinarySize(projectDir string) state.BinaryResult {
 	}
 
 	tmpBin := filepath.Join(absDir, ".devdash_tmp_binary")
-	defer os.Remove(tmpBin)
+	defer func() {
+		if err := os.Remove(tmpBin); err != nil && !os.IsNotExist(err) {
+			_ = err
+		}
+	}()
 
 	res := services.RunCommand(ctx, absDir, "go", "build", "-o", tmpBin, "./cmd/dashboard")
 

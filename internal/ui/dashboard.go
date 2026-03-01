@@ -409,14 +409,3 @@ func formatBytes(b int64) string {
 		return fmt.Sprintf("%d B", b)
 	}
 }
-
-func coverageStyle(pct float64) lipgloss.Style {
-	switch {
-	case pct >= 80:
-		return StatusPass
-	case pct >= 60:
-		return StatusWarn
-	default:
-		return StatusFail
-	}
-}

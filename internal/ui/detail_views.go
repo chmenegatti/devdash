@@ -108,10 +108,10 @@ func RenderLintDetail(ds *state.Dashboard, width, height int) string {
 		issueStyle := lipgloss.NewStyle().Foreground(ColorWarning)
 		var sb strings.Builder
 		for i, iss := range ds.Lint.Issues {
-			sb.WriteString(fmt.Sprintf("%s %s\n",
+			fmt.Fprintf(&sb, "%s %s\n",
 				LabelStyle.Render(fmt.Sprintf("%3d.", i+1)),
 				issueStyle.Render(iss),
-			))
+			)
 		}
 		body = sb.String()
 	} else if ds.Lint.Status == state.StatusDone {
@@ -241,7 +241,7 @@ func RenderGitDetail(ds *state.Dashboard, width, height int) string {
 		}
 		sb.WriteString(LabelStyle.Render(fmt.Sprintf("  %s (%d)", label, len(files))) + "\n")
 		for _, f := range files {
-			sb.WriteString(fmt.Sprintf("  %s %s\n", style.Render(prefix), style.Render(f)))
+			fmt.Fprintf(&sb, "  %s %s\n", style.Render(prefix), style.Render(f))
 		}
 		sb.WriteString("\n")
 	}
@@ -259,12 +259,4 @@ func RenderGitDetail(ds *state.Dashboard, width, height int) string {
 	}
 
 	return detailFrame("Git Status", "Git", summary, body, width, height)
-}
-
-// min returns the smaller of two ints.
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
