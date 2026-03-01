@@ -11,22 +11,22 @@ permissions:
 
 jobs:
   build:
-    name: Build & Test
+    name: Build, Test & Coverage
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: ['1.21', '1.22', '1.23', '1.24', '1.25']
 
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: 🐹 Setup Go ${{ matrix.go-version }}
+      - name: 🐹 Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: '1.25.x'
           cache: true
           cache-dependency-path: go.sum
+
+      - name: ⚙️ Pin toolchain to local
+        run: go env -w GOTOOLCHAIN=local
 
       - name: 📦 Download dependencies
         run: go mod download
@@ -38,10 +38,12 @@ jobs:
         run: go vet ./...
 
       - name: 🧪 Test
-        run: go test ./... -v -race -coverprofile=coverage.out
+        run: go test ./... -v -race
+
+      - name: 📈 Coverage
+        run: go test ./internal/modules -coverprofile=coverage.out
 
       - name: 📊 Upload coverage
-        if: matrix.go-version == '1.25'
         uses: codecov/codecov-action@v4
         with:
           files: coverage.out
@@ -57,9 +59,12 @@ jobs:
       - name: 🐹 Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.25.x'
           cache: true
           cache-dependency-path: go.sum
+
+      - name: ⚙️ Pin toolchain to local
+        run: go env -w GOTOOLCHAIN=local
 
       - name: 🧰 Cache golangci-lint binary
         id: cache-golangci
