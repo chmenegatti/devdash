@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/chmenegatti/devdash/internal/logs"
@@ -70,11 +71,12 @@ const (
 
 // Model is the top-level Bubble Tea model for the dashboard.
 type Model struct {
-	state  *state.Dashboard
-	width  int
-	height int
-	ready  bool
-	view   viewMode
+	state          *state.Dashboard
+	width          int
+	height         int
+	ready          bool
+	view           viewMode
+	detailViewport viewport.Model
 }
 
 // New creates a new application Model.
@@ -96,6 +98,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.ready = true
+		m.syncDetailViewport()
 		return m, nil
 	case tea.KeyMsg:
 		return m.handleKey(msg)
@@ -104,30 +107,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case testsResultMsg:
 		m.state.Tests = msg.result
 		logModuleError("tests", msg.result.Status, msg.result.Err)
+		m.syncDetailViewport()
 		return m, nil
 	case coverageResultMsg:
 		m.state.Coverage = msg.result
 		logModuleError("coverage", msg.result.Status, msg.result.Err)
+		m.syncDetailViewport()
 		return m, nil
 	case lintResultMsg:
 		m.state.Lint = msg.result
 		logModuleError("lint", msg.result.Status, msg.result.Err)
+		m.syncDetailViewport()
 		return m, nil
 	case benchResultMsg:
 		m.state.Benchmarks = msg.result
 		logModuleError("benchmarks", msg.result.Status, msg.result.Err)
+		m.syncDetailViewport()
 		return m, nil
 	case binaryResultMsg:
 		m.state.Binary = msg.result
 		logModuleError("binary", msg.result.Status, msg.result.Err)
+		m.syncDetailViewport()
 		return m, nil
 	case depsResultMsg:
 		m.state.Deps = msg.result
 		logModuleError("dependencies", msg.result.Status, msg.result.Err)
+		m.syncDetailViewport()
 		return m, nil
 	case gitResultMsg:
 		m.state.Git = msg.result
 		logModuleError("git", msg.result.Status, msg.result.Err)
+		m.syncDetailViewport()
 		return m, nil
 	case reportResultMsg:
 		if msg.err != nil {
@@ -150,15 +160,20 @@ func (m Model) View() string {
 	}
 	switch m.view {
 	case viewTestsDetail:
-		return ui.RenderTestsDetail(m.state, m.width, m.height)
+		detail := m.currentDetailContent()
+		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.width, m.height)
 	case viewLintDetail:
-		return ui.RenderLintDetail(m.state, m.width, m.height)
+		detail := m.currentDetailContent()
+		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.width, m.height)
 	case viewBenchDetail:
-		return ui.RenderBenchDetail(m.state, m.width, m.height)
+		detail := m.currentDetailContent()
+		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.width, m.height)
 	case viewDepsDetail:
-		return ui.RenderDepsDetail(m.state, m.width, m.height)
+		detail := m.currentDetailContent()
+		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.width, m.height)
 	case viewGitDetail:
-		return ui.RenderGitDetail(m.state, m.width, m.height)
+		detail := m.currentDetailContent()
+		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.width, m.height)
 	default:
 		return ui.RenderDashboard(m.state, m.width, m.height)
 	}
@@ -180,8 +195,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case viewDashboard:
 		return m.handleDashboardKey(msg)
 	default:
-		// In detail views, only global keys apply
-		return m, nil
+		var cmd tea.Cmd
+		m.detailViewport, cmd = m.detailViewport.Update(msg)
+		return m, cmd
 	}
 }
 
@@ -193,6 +209,7 @@ func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.runTestsCmd()
 	case "T":
 		m.view = viewTestsDetail
+		m.syncDetailViewport()
 		return m, nil
 	case "c":
 		m.state.Coverage.Status = state.StatusRunning
@@ -202,12 +219,14 @@ func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.runLintCmd()
 	case "L":
 		m.view = viewLintDetail
+		m.syncDetailViewport()
 		return m, nil
 	case "b":
 		m.state.Benchmarks.Status = state.StatusRunning
 		return m, m.runBenchCmd()
 	case "B":
 		m.view = viewBenchDetail
+		m.syncDetailViewport()
 		return m, nil
 	case "s":
 		m.state.Binary.Status = state.StatusRunning
@@ -217,12 +236,14 @@ func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.runGitCmd()
 	case "G":
 		m.view = viewGitDetail
+		m.syncDetailViewport()
 		return m, nil
 	case "d":
 		m.state.Deps.Status = state.StatusRunning
 		return m, m.runDepsCmd()
 	case "D":
 		m.view = viewDepsDetail
+		m.syncDetailViewport()
 		return m, nil
 	case "m":
 		m.state.Notice = "🛠️ Gerando relatório Markdown..."
@@ -338,4 +359,39 @@ func logModuleError(module string, status state.Status, errText string) {
 		errText = "unknown error"
 	}
 	logs.Errorf("module=%s status=%s err=%s", module, status.String(), errText)
+}
+
+func (m *Model) syncDetailViewport() {
+	if m.view == viewDashboard || m.width <= 0 || m.height <= 0 {
+		return
+	}
+
+	detail := m.currentDetailContent()
+	bodyWidth, bodyHeight := ui.DetailBodySize(m.width, m.height)
+
+	if m.detailViewport.Width == 0 || m.detailViewport.Height == 0 {
+		m.detailViewport = viewport.New(bodyWidth, bodyHeight)
+	} else {
+		m.detailViewport.Width = bodyWidth
+		m.detailViewport.Height = bodyHeight
+	}
+
+	m.detailViewport.SetContent(detail.Body)
+}
+
+func (m Model) currentDetailContent() ui.DetailContent {
+	switch m.view {
+	case viewTestsDetail:
+		return ui.BuildTestsDetail(m.state, m.width)
+	case viewLintDetail:
+		return ui.BuildLintDetail(m.state, m.width)
+	case viewBenchDetail:
+		return ui.BuildBenchDetail(m.state, m.width)
+	case viewDepsDetail:
+		return ui.BuildDepsDetail(m.state, m.width)
+	case viewGitDetail:
+		return ui.BuildGitDetail(m.state, m.width)
+	default:
+		return ui.DetailContent{}
+	}
 }

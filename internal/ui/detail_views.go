@@ -9,9 +9,17 @@ import (
 	"github.com/chmenegatti/devdash/internal/state"
 )
 
+// DetailContent represents the text payload for a detail screen.
+type DetailContent struct {
+	Title   string
+	Crumb   string
+	Summary string
+	Body    string
+}
+
 // ── Shared detail layout ────────────────────────────────────────────────────
 
-func detailFrame(title string, crumb string, summary string, body string, width, height int) string {
+func RenderDetailFrame(title string, crumb string, summary string, body string, width, height int) string {
 	// Header
 	header := HeaderBarStyle.Width(width).Render(
 		LogoStyle.Render("⎈ devdash") + "  " +
@@ -31,6 +39,10 @@ func detailFrame(title string, crumb string, summary string, body string, width,
 
 	// Command bar
 	cmdBar := RenderCommandBar([]KeyBinding{
+		{Key: "↑/k", Desc: "up"},
+		{Key: "↓/j", Desc: "down"},
+		{Key: "pgup/pgdn", Desc: "page"},
+		{Key: "g/G", Desc: "top/end"},
 		{Key: "backspace", Desc: "back"},
 		{Key: "q", Desc: "quit"},
 	}, width)
@@ -47,10 +59,23 @@ func detailFrame(title string, crumb string, summary string, body string, width,
 	)
 }
 
+// DetailBodySize returns viewport dimensions for detail content.
+func DetailBodySize(width, height int) (bodyWidth int, bodyHeight int) {
+	bodyWidth = clamp(width-6, 20, 500)
+	bodyHeight = clamp(height-9, 3, 200)
+	return bodyWidth, bodyHeight
+}
+
 // ── Tests detail ────────────────────────────────────────────────────────────
 
 // RenderTestsDetail renders a full-screen view of test results.
 func RenderTestsDetail(ds *state.Dashboard, width, height int) string {
+	detail := BuildTestsDetail(ds, width)
+	return RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, detail.Body, width, height)
+}
+
+// BuildTestsDetail builds summary and body content for tests detail view.
+func BuildTestsDetail(ds *state.Dashboard, width int) DetailContent {
 	var summary string
 	switch ds.Tests.Status {
 	case state.StatusDone:
@@ -79,13 +104,24 @@ func RenderTestsDetail(ds *state.Dashboard, width, height int) string {
 		output = StatusIdle.Render("(no output)")
 	}
 
-	return detailFrame("Tests", "Tests", summary, output, width, height)
+	return DetailContent{
+		Title:   "Tests",
+		Crumb:   "Tests",
+		Summary: summary,
+		Body:    output,
+	}
 }
 
 // ── Lint detail ─────────────────────────────────────────────────────────────
 
 // RenderLintDetail renders a full-screen view of lint results.
 func RenderLintDetail(ds *state.Dashboard, width, height int) string {
+	detail := BuildLintDetail(ds, width)
+	return RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, detail.Body, width, height)
+}
+
+// BuildLintDetail builds summary and body content for lint detail view.
+func BuildLintDetail(ds *state.Dashboard, width int) DetailContent {
 	var summary string
 	switch ds.Lint.Status {
 	case state.StatusDone:
@@ -120,13 +156,24 @@ func RenderLintDetail(ds *state.Dashboard, width, height int) string {
 		body = StatusIdle.Render("(no output)")
 	}
 
-	return detailFrame("Lint", "Lint", summary, body, width, height)
+	return DetailContent{
+		Title:   "Lint",
+		Crumb:   "Lint",
+		Summary: summary,
+		Body:    body,
+	}
 }
 
 // ── Bench detail ────────────────────────────────────────────────────────────
 
 // RenderBenchDetail renders a full-screen view of benchmark results.
 func RenderBenchDetail(ds *state.Dashboard, width, height int) string {
+	detail := BuildBenchDetail(ds, width)
+	return RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, detail.Body, width, height)
+}
+
+// BuildBenchDetail builds summary and body content for benchmark detail view.
+func BuildBenchDetail(ds *state.Dashboard, width int) DetailContent {
 	var summary string
 	switch ds.Benchmarks.Status {
 	case state.StatusDone:
@@ -168,13 +215,24 @@ func RenderBenchDetail(ds *state.Dashboard, width, height int) string {
 		body = StatusIdle.Render("(no output)")
 	}
 
-	return detailFrame("Benchmarks", "Benchmarks", summary, body, width, height)
+	return DetailContent{
+		Title:   "Benchmarks",
+		Crumb:   "Benchmarks",
+		Summary: summary,
+		Body:    body,
+	}
 }
 
 // ── Deps detail ─────────────────────────────────────────────────────────────
 
 // RenderDepsDetail renders a full-screen view of module dependencies.
 func RenderDepsDetail(ds *state.Dashboard, width, height int) string {
+	detail := BuildDepsDetail(ds, width)
+	return RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, detail.Body, width, height)
+}
+
+// BuildDepsDetail builds summary and body content for dependencies detail view.
+func BuildDepsDetail(ds *state.Dashboard, width int) DetailContent {
 	var summary string
 	switch ds.Deps.Status {
 	case state.StatusDone:
@@ -205,13 +263,24 @@ func RenderDepsDetail(ds *state.Dashboard, width, height int) string {
 		body = StatusIdle.Render("(no output)")
 	}
 
-	return detailFrame("Dependencies", "Dependencies", summary, body, width, height)
+	return DetailContent{
+		Title:   "Dependencies",
+		Crumb:   "Dependencies",
+		Summary: summary,
+		Body:    body,
+	}
 }
 
 // ── Git detail ──────────────────────────────────────────────────────────────
 
 // RenderGitDetail renders a full-screen view of git status.
 func RenderGitDetail(ds *state.Dashboard, width, height int) string {
+	detail := BuildGitDetail(ds, width)
+	return RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, detail.Body, width, height)
+}
+
+// BuildGitDetail builds summary and body content for git detail view.
+func BuildGitDetail(ds *state.Dashboard, width int) DetailContent {
 	var summary string
 	switch ds.Git.Status {
 	case state.StatusDone:
@@ -258,5 +327,10 @@ func RenderGitDetail(ds *state.Dashboard, width, height int) string {
 		body = StatusIdle.Render("(no output)")
 	}
 
-	return detailFrame("Git Status", "Git", summary, body, width, height)
+	return DetailContent{
+		Title:   "Git Status",
+		Crumb:   "Git",
+		Summary: summary,
+		Body:    body,
+	}
 }
