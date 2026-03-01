@@ -3,9 +3,11 @@ package app
 
 import (
 	"path/filepath"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/chmenegatti/devdash/internal/logs"
 	"github.com/chmenegatti/devdash/internal/modules"
 	"github.com/chmenegatti/devdash/internal/state"
 	"github.com/chmenegatti/devdash/internal/ui"
@@ -101,30 +103,39 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// ── Async result messages ──────────────────────────────────
 	case testsResultMsg:
 		m.state.Tests = msg.result
+		logModuleError("tests", msg.result.Status, msg.result.Err)
 		return m, nil
 	case coverageResultMsg:
 		m.state.Coverage = msg.result
+		logModuleError("coverage", msg.result.Status, msg.result.Err)
 		return m, nil
 	case lintResultMsg:
 		m.state.Lint = msg.result
+		logModuleError("lint", msg.result.Status, msg.result.Err)
 		return m, nil
 	case benchResultMsg:
 		m.state.Benchmarks = msg.result
+		logModuleError("benchmarks", msg.result.Status, msg.result.Err)
 		return m, nil
 	case binaryResultMsg:
 		m.state.Binary = msg.result
+		logModuleError("binary", msg.result.Status, msg.result.Err)
 		return m, nil
 	case depsResultMsg:
 		m.state.Deps = msg.result
+		logModuleError("dependencies", msg.result.Status, msg.result.Err)
 		return m, nil
 	case gitResultMsg:
 		m.state.Git = msg.result
+		logModuleError("git", msg.result.Status, msg.result.Err)
 		return m, nil
 	case reportResultMsg:
 		if msg.err != nil {
+			logs.Errorf("report generation failed: %v", msg.err)
 			m.state.Notice = "❌ Erro ao gerar relatório: " + msg.err.Error()
 			return m, nil
 		}
+		logs.Infof("report generated: %s", msg.path)
 		fileName := filepath.Base(msg.path)
 		m.state.Notice = "📝 Relatório gerado: " + fileName + " (" + msg.path + ")"
 		return m, nil
@@ -316,4 +327,15 @@ func snapshotDashboard(ds state.Dashboard) state.Dashboard {
 	s.Git.Deleted = append([]string(nil), ds.Git.Deleted...)
 	s.Git.Other = append([]string(nil), ds.Git.Other...)
 	return s
+}
+
+func logModuleError(module string, status state.Status, errText string) {
+	errText = strings.TrimSpace(errText)
+	if status != state.StatusError && errText == "" {
+		return
+	}
+	if errText == "" {
+		errText = "unknown error"
+	}
+	logs.Errorf("module=%s status=%s err=%s", module, status.String(), errText)
 }
