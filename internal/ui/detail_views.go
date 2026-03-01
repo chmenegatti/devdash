@@ -1,4 +1,4 @@
-// Package ui — detail_views.go renders full-screen detail views for module outputs.
+// Package ui — detail_views.go renders K9s-style full-screen detail views.
 package ui
 
 import (
@@ -9,56 +9,68 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// detailHeader renders the top bar for a detail view.
-func detailHeader(title string, width int) string {
-	bar := TitleStyle.Render(fmt.Sprintf("  %s  ", title))
-	return bar
-}
+// ── Shared detail layout ────────────────────────────────────────────────────
 
-// detailFooter renders the bottom help bar for a detail view.
-func detailFooter() string {
-	return RenderHelp([]KeyBinding{
-		{Key: "backspace", Desc: "back to dashboard"},
+func detailFrame(title string, crumb string, summary string, body string, width, height int) string {
+	// Header
+	header := HeaderBarStyle.Width(width).Render(
+		LogoStyle.Render("⎈ devdash") + "  " +
+			lipgloss.NewStyle().Foreground(ColorDim).Render("v0.1.0"),
+	)
+
+	// Crumbs
+	crumbs := RenderCrumbs("Dashboard", crumb)
+
+	sep := SepStyle.Render(strings.Repeat("─", clamp(width, 0, width)))
+
+	// Body with padding
+	bodyStyle := lipgloss.NewStyle().
+		Width(width-4).
+		Foreground(ColorFg).
+		Padding(0, 1)
+
+	// Command bar
+	cmdBar := RenderCommandBar([]KeyBinding{
+		{Key: "backspace", Desc: "back"},
 		{Key: "q", Desc: "quit"},
-	})
+	}, width)
+
+	return lipgloss.JoinVertical(lipgloss.Left,
+		header,
+		crumbs,
+		sep,
+		summary,
+		sep,
+		bodyStyle.Render(body),
+		sep,
+		cmdBar,
+	)
 }
 
-// detailBody wraps raw output in a styled full-width container.
-func detailBody(content string, width, height int) string {
-	style := lipgloss.NewStyle().
-		Width(width - 4).
-		Foreground(ColorWhite)
-
-	return style.Render(content)
-}
+// ── Tests detail ────────────────────────────────────────────────────────────
 
 // RenderTestsDetail renders a full-screen view of test results.
 func RenderTestsDetail(ds *state.Dashboard, width, height int) string {
-	header := detailHeader("Tests — Full Output", width)
-
-	// Summary line
 	var summary string
-	if ds.Tests.Status == state.StatusDone {
-		passLabel := "PASS"
-		passStyle := StatusPass
+	switch ds.Tests.Status {
+	case state.StatusDone:
+		pass := StatusPass.Render("✓ PASS")
 		if !ds.Tests.Passed {
-			passLabel = "FAIL"
-			passStyle = StatusFail
+			pass = StatusFail.Render("✗ FAIL")
 		}
-		summary = fmt.Sprintf("%s  %s  %s",
-			RenderStatusField("Status", passLabel, passStyle),
-			RenderField("Packages", fmt.Sprintf("%d", ds.Tests.Packages)),
-			RenderField("Duration", ds.Tests.Duration.String()),
+		summary = fmt.Sprintf("  %s  %s  %s",
+			pass,
+			StatChip("packages", fmt.Sprintf("%d", ds.Tests.Packages)),
+			StatChip("duration", ds.Tests.Duration.String()),
 		)
-	} else if ds.Tests.Status == state.StatusRunning {
-		summary = StatusWarn.Render("Running…")
-	} else if ds.Tests.Status == state.StatusError {
-		summary = RenderStatusField("Status", "Error", StatusFail)
-	} else {
-		summary = StatusIdle.Render("No test run yet. Press t to run tests.")
+	case state.StatusRunning:
+		summary = "  " + StatusWarn.Render("◍ Running…")
+	case state.StatusError:
+		summary = "  " + StatusFail.Render("● Error")
+	default:
+		summary = "  " + StatusIdle.Render("○ No test run yet. Press <t> to run.")
 	}
 
-	// Raw output
 	output := ds.Tests.Output
 	if ds.Tests.Err != "" {
 		output += "\n" + StatusFail.Render("Error: "+ds.Tests.Err)
@@ -67,206 +79,155 @@ func RenderTestsDetail(ds *state.Dashboard, width, height int) string {
 		output = StatusIdle.Render("(no output)")
 	}
 
-	separator := SepStyle.Render(strings.Repeat("─", min(width-2, 80)))
-
-	body := detailBody(output, width, height)
-	footer := detailFooter()
-
-	return lipgloss.JoinVertical(lipgloss.Left,
-		header,
-		"",
-		summary,
-		separator,
-		"",
-		body,
-		"",
-		footer,
-	)
+	return detailFrame("Tests", "Tests", summary, output, width, height)
 }
+
+// ── Lint detail ─────────────────────────────────────────────────────────────
 
 // RenderLintDetail renders a full-screen view of lint results.
 func RenderLintDetail(ds *state.Dashboard, width, height int) string {
-	header := detailHeader("Lint — Full Output", width)
-
-	// Summary line
 	var summary string
-	if ds.Lint.Status == state.StatusDone {
+	switch ds.Lint.Status {
+	case state.StatusDone:
 		n := len(ds.Lint.Issues)
 		if n == 0 {
-			summary = RenderStatusField("Status", "OK — no issues", StatusPass)
+			summary = "  " + StatusPass.Render("✓ No lint issues")
 		} else {
-			summary = RenderStatusField("Issues", fmt.Sprintf("%d", n), StatusWarn)
+			summary = "  " + StatusWarn.Render(fmt.Sprintf("▲ %d issues", n))
 		}
-	} else if ds.Lint.Status == state.StatusRunning {
-		summary = StatusWarn.Render("Running…")
-	} else if ds.Lint.Status == state.StatusError {
-		summary = RenderStatusField("Status", "Error", StatusFail) +
-			"  " + StatusFail.Render(ds.Lint.Err)
-	} else {
-		summary = StatusIdle.Render("No lint run yet. Press l to run lint.")
+	case state.StatusRunning:
+		summary = "  " + StatusWarn.Render("◍ Running…")
+	case state.StatusError:
+		summary = "  " + StatusFail.Render("● Error: "+ds.Lint.Err)
+	default:
+		summary = "  " + StatusIdle.Render("○ No lint run yet. Press <l> to run.")
 	}
 
-	separator := SepStyle.Render(strings.Repeat("─", min(width-2, 80)))
-
-	// Full issue list
-	var issueLines string
+	var body string
 	if len(ds.Lint.Issues) > 0 {
-		var sb strings.Builder
 		issueStyle := lipgloss.NewStyle().Foreground(ColorWarning)
+		var sb strings.Builder
 		for i, iss := range ds.Lint.Issues {
 			sb.WriteString(fmt.Sprintf("%s %s\n",
 				LabelStyle.Render(fmt.Sprintf("%3d.", i+1)),
 				issueStyle.Render(iss),
 			))
 		}
-		issueLines = sb.String()
+		body = sb.String()
 	} else if ds.Lint.Status == state.StatusDone {
-		issueLines = StatusPass.Render("✓ Clean — no lint issues found")
+		body = StatusPass.Render("✓ Clean — no lint issues found")
 	} else {
-		issueLines = StatusIdle.Render("(no output)")
+		body = StatusIdle.Render("(no output)")
 	}
 
-	body := detailBody(issueLines, width, height)
-	footer := detailFooter()
-
-	return lipgloss.JoinVertical(lipgloss.Left,
-		header,
-		"",
-		summary,
-		separator,
-		"",
-		body,
-		"",
-		footer,
-	)
+	return detailFrame("Lint", "Lint", summary, body, width, height)
 }
+
+// ── Bench detail ────────────────────────────────────────────────────────────
 
 // RenderBenchDetail renders a full-screen view of benchmark results.
 func RenderBenchDetail(ds *state.Dashboard, width, height int) string {
-	header := detailHeader("Benchmarks — Full Output", width)
-
 	var summary string
-	if ds.Benchmarks.Status == state.StatusDone {
+	switch ds.Benchmarks.Status {
+	case state.StatusDone:
 		n := len(ds.Benchmarks.Entries)
 		if n == 0 {
-			summary = StatusIdle.Render("No benchmarks found")
+			summary = "  " + StatusIdle.Render("No benchmarks found")
 		} else {
-			summary = RenderField("Benchmarks", fmt.Sprintf("%d", n))
+			summary = "  " + StatusPass.Render(fmt.Sprintf("● %d benchmarks", n))
 		}
-	} else if ds.Benchmarks.Status == state.StatusRunning {
-		summary = StatusWarn.Render("Running…")
-	} else if ds.Benchmarks.Status == state.StatusError {
-		summary = RenderStatusField("Status", "Error", StatusFail) +
-			"  " + StatusFail.Render(ds.Benchmarks.Err)
-	} else {
-		summary = StatusIdle.Render("No benchmark run yet. Press b to run benchmarks.")
+	case state.StatusRunning:
+		summary = "  " + StatusWarn.Render("◍ Running…")
+	case state.StatusError:
+		summary = "  " + StatusFail.Render("● Error: "+ds.Benchmarks.Err)
+	default:
+		summary = "  " + StatusIdle.Render("○ No benchmark run yet. Press <b> to run.")
 	}
-
-	separator := SepStyle.Render(strings.Repeat("─", min(width-2, 80)))
 
 	var body string
 	if len(ds.Benchmarks.Entries) > 0 {
-		nameStyle := lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true)
-		valStyle := lipgloss.NewStyle().Foreground(ColorWhite)
-		dimStyle := lipgloss.NewStyle().Foreground(ColorDim)
-
+		cols := []TableColumn{
+			{Header: "#", Width: 5},
+			{Header: "NAME", Width: clamp(width-40, 20, 60)},
+			{Header: "ITERATIONS", Width: 12},
+			{Header: "NS/OP", Width: 12},
+		}
 		var sb strings.Builder
+		sb.WriteString(RenderTableHeader(cols) + "\n")
 		for i, e := range ds.Benchmarks.Entries {
-			sb.WriteString(fmt.Sprintf("%s  %s  %s  %s\n",
-				LabelStyle.Render(fmt.Sprintf("%3d.", i+1)),
-				nameStyle.Render(e.Name),
-				valStyle.Render(fmt.Sprintf("%d iters", e.Iterations)),
-				dimStyle.Render(fmt.Sprintf("%.1f ns/op", e.NsPerOp)),
-			))
+			sb.WriteString(RenderTableRow(
+				[]string{
+					fmt.Sprintf("%d", i+1),
+					e.Name,
+					fmt.Sprintf("%d", e.Iterations),
+					fmt.Sprintf("%.1f", e.NsPerOp),
+				}, cols, i%2 == 1) + "\n")
 		}
 		body = sb.String()
 	} else {
 		body = StatusIdle.Render("(no output)")
 	}
 
-	footer := detailFooter()
-
-	return lipgloss.JoinVertical(lipgloss.Left,
-		header,
-		"",
-		summary,
-		separator,
-		"",
-		detailBody(body, width, height),
-		"",
-		footer,
-	)
+	return detailFrame("Benchmarks", "Benchmarks", summary, body, width, height)
 }
+
+// ── Deps detail ─────────────────────────────────────────────────────────────
 
 // RenderDepsDetail renders a full-screen view of module dependencies.
 func RenderDepsDetail(ds *state.Dashboard, width, height int) string {
-	header := detailHeader("Dependencies — Full List", width)
-
 	var summary string
-	if ds.Deps.Status == state.StatusDone {
-		summary = RenderField("Total modules", fmt.Sprintf("%d", len(ds.Deps.Deps)))
-	} else if ds.Deps.Status == state.StatusRunning {
-		summary = StatusWarn.Render("Running…")
-	} else if ds.Deps.Status == state.StatusError {
-		summary = RenderStatusField("Status", "Error", StatusFail) +
-			"  " + StatusFail.Render(ds.Deps.Err)
-	} else {
-		summary = StatusIdle.Render("No dependency scan yet. Press d to list deps.")
+	switch ds.Deps.Status {
+	case state.StatusDone:
+		summary = "  " + StatusPass.Render(fmt.Sprintf("● %d modules", len(ds.Deps.Deps)))
+	case state.StatusRunning:
+		summary = "  " + StatusWarn.Render("◍ Running…")
+	case state.StatusError:
+		summary = "  " + StatusFail.Render("● Error: "+ds.Deps.Err)
+	default:
+		summary = "  " + StatusIdle.Render("○ Press <d> to list dependencies.")
 	}
-
-	separator := SepStyle.Render(strings.Repeat("─", min(width-2, 80)))
 
 	var body string
 	if len(ds.Deps.Deps) > 0 {
-		depStyle := lipgloss.NewStyle().Foreground(ColorPrimary)
+		cols := []TableColumn{
+			{Header: "#", Width: 5},
+			{Header: "MODULE", Width: clamp(width-12, 20, 80)},
+		}
 		var sb strings.Builder
+		sb.WriteString(RenderTableHeader(cols) + "\n")
 		for i, d := range ds.Deps.Deps {
-			sb.WriteString(fmt.Sprintf("%s %s\n",
-				LabelStyle.Render(fmt.Sprintf("%3d.", i+1)),
-				depStyle.Render(d),
-			))
+			sb.WriteString(RenderTableRow(
+				[]string{fmt.Sprintf("%d", i+1), d},
+				cols, i%2 == 1) + "\n")
 		}
 		body = sb.String()
 	} else {
 		body = StatusIdle.Render("(no output)")
 	}
 
-	footer := detailFooter()
-
-	return lipgloss.JoinVertical(lipgloss.Left,
-		header,
-		"",
-		summary,
-		separator,
-		"",
-		detailBody(body, width, height),
-		"",
-		footer,
-	)
+	return detailFrame("Dependencies", "Dependencies", summary, body, width, height)
 }
+
+// ── Git detail ──────────────────────────────────────────────────────────────
 
 // RenderGitDetail renders a full-screen view of git status.
 func RenderGitDetail(ds *state.Dashboard, width, height int) string {
-	header := detailHeader("Git Status — Full Output", width)
-
 	var summary string
-	if ds.Git.Status == state.StatusDone {
+	switch ds.Git.Status {
+	case state.StatusDone:
 		total := len(ds.Git.Modified) + len(ds.Git.Added) + len(ds.Git.Deleted) + len(ds.Git.Other)
 		if total == 0 {
-			summary = RenderStatusField("Status", "Clean", StatusPass)
+			summary = "  " + StatusPass.Render("✓ Working tree clean")
 		} else {
-			summary = RenderField("Changed files", fmt.Sprintf("%d", total))
+			summary = "  " + StatusWarn.Render(fmt.Sprintf("● %d changes", total))
 		}
-	} else if ds.Git.Status == state.StatusRunning {
-		summary = StatusWarn.Render("Running…")
-	} else if ds.Git.Status == state.StatusError {
-		summary = RenderStatusField("Status", "Error", StatusFail) +
-			"  " + StatusFail.Render(ds.Git.Err)
-	} else {
-		summary = StatusIdle.Render("No git status yet. Press g to check.")
+	case state.StatusRunning:
+		summary = "  " + StatusWarn.Render("◍ Running…")
+	case state.StatusError:
+		summary = "  " + StatusFail.Render("● Error: "+ds.Git.Err)
+	default:
+		summary = "  " + StatusIdle.Render("○ Press <g> to check git status.")
 	}
-
-	separator := SepStyle.Render(strings.Repeat("─", min(width-2, 80)))
 
 	var sb strings.Builder
 	modStyle := lipgloss.NewStyle().Foreground(ColorWarning)
@@ -274,21 +235,21 @@ func RenderGitDetail(ds *state.Dashboard, width, height int) string {
 	delStyle := lipgloss.NewStyle().Foreground(ColorDanger)
 	otherStyle := lipgloss.NewStyle().Foreground(ColorDim)
 
-	renderSection := func(label string, files []string, style lipgloss.Style) {
+	renderSection := func(prefix string, label string, files []string, style lipgloss.Style) {
 		if len(files) == 0 {
 			return
 		}
-		sb.WriteString(LabelStyle.Render(fmt.Sprintf("  %s (%d):", label, len(files))) + "\n")
+		sb.WriteString(LabelStyle.Render(fmt.Sprintf("  %s (%d)", label, len(files))) + "\n")
 		for _, f := range files {
-			sb.WriteString("    " + style.Render(f) + "\n")
+			sb.WriteString(fmt.Sprintf("  %s %s\n", style.Render(prefix), style.Render(f)))
 		}
 		sb.WriteString("\n")
 	}
 
-	renderSection("Modified", ds.Git.Modified, modStyle)
-	renderSection("Added", ds.Git.Added, addStyle)
-	renderSection("Deleted", ds.Git.Deleted, delStyle)
-	renderSection("Untracked", ds.Git.Other, otherStyle)
+	renderSection("M", "Modified", ds.Git.Modified, modStyle)
+	renderSection("A", "Added", ds.Git.Added, addStyle)
+	renderSection("D", "Deleted", ds.Git.Deleted, delStyle)
+	renderSection("?", "Untracked", ds.Git.Other, otherStyle)
 
 	body := sb.String()
 	if body == "" && ds.Git.Status == state.StatusDone {
@@ -297,18 +258,7 @@ func RenderGitDetail(ds *state.Dashboard, width, height int) string {
 		body = StatusIdle.Render("(no output)")
 	}
 
-	footer := detailFooter()
-
-	return lipgloss.JoinVertical(lipgloss.Left,
-		header,
-		"",
-		summary,
-		separator,
-		"",
-		detailBody(body, width, height),
-		"",
-		footer,
-	)
+	return detailFrame("Git Status", "Git", summary, body, width, height)
 }
 
 // min returns the smaller of two ints.

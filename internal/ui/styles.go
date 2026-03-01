@@ -1,47 +1,119 @@
 // Package ui provides styling constants and helpers using Lipgloss.
+// Uses a K9s-inspired dark theme with cyan/blue accents.
 package ui
 
 import "github.com/charmbracelet/lipgloss"
 
-// Color palette.
+// ── K9s-inspired color palette ──────────────────────────────────────────────
+
 var (
-	ColorPrimary   = lipgloss.Color("#7D56F4")
-	ColorSecondary = lipgloss.Color("#6C6C6C")
-	ColorSuccess   = lipgloss.Color("#73D216")
-	ColorWarning   = lipgloss.Color("#F5A623")
-	ColorDanger    = lipgloss.Color("#FF5F56")
-	ColorMuted     = lipgloss.Color("#555555")
-	ColorWhite     = lipgloss.Color("#FAFAFA")
-	ColorDim       = lipgloss.Color("#888888")
+	// Core accent — K9s signature cyan/teal
+	ColorAccent    = lipgloss.Color("#00d7d7")
+	ColorAccentDim = lipgloss.Color("#008b8b")
+
+	// Logo gradient
+	ColorLogo1 = lipgloss.Color("#5fafff")
+	ColorLogo2 = lipgloss.Color("#00d7d7")
+
+	// Semantic
+	ColorSuccess = lipgloss.Color("#00d787")
+	ColorWarning = lipgloss.Color("#d7af00")
+	ColorDanger  = lipgloss.Color("#ff5f5f")
+
+	// Neutrals
+	ColorWhite     = lipgloss.Color("#e4e4e4")
+	ColorFg        = lipgloss.Color("#bcbcbc")
+	ColorDim       = lipgloss.Color("#6c6c6c")
+	ColorSubtle    = lipgloss.Color("#444444")
+	ColorBorder    = lipgloss.Color("#3a3a3a")
+	ColorBg        = lipgloss.Color("#1c1c1c")
+	ColorHeaderBg  = lipgloss.Color("#262626")
+	ColorSelected  = lipgloss.Color("#303030")
+	ColorCrumbBg   = lipgloss.Color("#303030")
+	ColorStatusBar = lipgloss.Color("#1c1c1c")
+
+	// Backward compat aliases
+	ColorPrimary   = ColorAccent
+	ColorSecondary = ColorDim
+	ColorMuted     = ColorSubtle
 )
 
-// PanelStyle is a reusable bordered card style.
-var PanelStyle = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
-	BorderForeground(ColorPrimary).
+// ── Header ──────────────────────────────────────────────────────────────────
+
+// LogoStyle renders the "devdash" logo text.
+var LogoStyle = lipgloss.NewStyle().
+	Bold(true).
+	Foreground(ColorLogo2)
+
+// HeaderBarStyle is the full-width top bar background.
+var HeaderBarStyle = lipgloss.NewStyle().
+	Background(ColorHeaderBg).
+	Foreground(ColorFg).
 	Padding(0, 1)
 
-// TitleStyle styles the top header bar.
-var TitleStyle = lipgloss.NewStyle().
+// CrumbStyle renders breadcrumb segments.
+var CrumbStyle = lipgloss.NewStyle().
+	Background(ColorCrumbBg).
+	Foreground(ColorAccent).
 	Bold(true).
-	Foreground(ColorWhite).
-	Background(ColorPrimary).
-	Padding(0, 2).
-	MarginBottom(1)
+	Padding(0, 1)
 
-// SubtitleStyle for secondary information.
-var SubtitleStyle = lipgloss.NewStyle().
-	Foreground(ColorDim).
-	MarginBottom(1)
+// CrumbSepStyle for the separator between crumbs.
+var CrumbSepStyle = lipgloss.NewStyle().
+	Foreground(ColorDim)
+
+// InfoStyle for inline key:value stats on the header line.
+var InfoStyle = lipgloss.NewStyle().
+	Foreground(ColorDim)
+
+// InfoValueStyle for stat values in the header.
+var InfoValueStyle = lipgloss.NewStyle().
+	Foreground(ColorFg)
+
+// ── Section / Panel ─────────────────────────────────────────────────────────
+
+// SectionBorder uses a thin line box.
+var SectionBorder = lipgloss.NewStyle().
+	Border(lipgloss.NormalBorder()).
+	BorderForeground(ColorBorder).
+	Padding(0, 1)
+
+// SectionTitleStyle renders a panel header label.
+var SectionTitleStyle = lipgloss.NewStyle().
+	Bold(true).
+	Foreground(ColorAccent)
+
+// ── Table ───────────────────────────────────────────────────────────────────
+
+// TableHeaderStyle for column headers inside panels.
+var TableHeaderStyle = lipgloss.NewStyle().
+	Bold(true).
+	Foreground(ColorAccentDim).
+	BorderBottom(true).
+	BorderStyle(lipgloss.NormalBorder()).
+	BorderForeground(ColorBorder)
+
+// TableRowStyle for regular data rows.
+var TableRowStyle = lipgloss.NewStyle().
+	Foreground(ColorFg)
+
+// TableRowAltStyle for alternating rows (subtle highlight).
+var TableRowAltStyle = lipgloss.NewStyle().
+	Foreground(ColorFg).
+	Background(ColorSelected)
+
+// ── Field labels & values ───────────────────────────────────────────────────
 
 // LabelStyle for field labels inside panels.
 var LabelStyle = lipgloss.NewStyle().
-	Foreground(ColorSecondary).
+	Foreground(ColorDim).
 	Bold(true)
 
 // ValueStyle for field values.
 var ValueStyle = lipgloss.NewStyle().
 	Foreground(ColorWhite)
+
+// ── Status badges ───────────────────────────────────────────────────────────
 
 // StatusPass styles pass/ok values.
 var StatusPass = lipgloss.NewStyle().
@@ -60,19 +132,39 @@ var StatusWarn = lipgloss.NewStyle().
 
 // StatusIdle styles idle/placeholder values.
 var StatusIdle = lipgloss.NewStyle().
-	Foreground(ColorMuted).
+	Foreground(ColorSubtle).
 	Italic(true)
 
-// HelpStyle for the footer help bar.
-var HelpStyle = lipgloss.NewStyle().
-	Foreground(ColorDim).
-	MarginTop(1)
+// ── Help / Command bar ──────────────────────────────────────────────────────
 
-// KeyStyle for a keyboard shortcut key in help text.
+// HelpStyle for the command bar at the bottom.
+var HelpStyle = lipgloss.NewStyle().
+	Foreground(ColorDim)
+
+// KeyStyle for a keyboard shortcut key.
 var KeyStyle = lipgloss.NewStyle().
-	Foreground(ColorPrimary).
+	Foreground(ColorAccent).
 	Bold(true)
 
-// SepStyle is a subtle separator.
+// ── Separators ──────────────────────────────────────────────────────────────
+
+// SepStyle for horizontal rule lines.
 var SepStyle = lipgloss.NewStyle().
-	Foreground(ColorMuted)
+	Foreground(ColorBorder)
+
+// ── Backward compatibility (used by old component code) ─────────────────────
+
+// PanelStyle = SectionBorder (alias for backward compat)
+var PanelStyle = SectionBorder
+
+// TitleStyle (alias — used by detail_views)
+var TitleStyle = lipgloss.NewStyle().
+	Bold(true).
+	Foreground(ColorBg).
+	Background(ColorAccent).
+	Padding(0, 2)
+
+// SubtitleStyle for secondary information.
+var SubtitleStyle = lipgloss.NewStyle().
+	Foreground(ColorDim).
+	MarginBottom(0)

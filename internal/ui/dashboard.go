@@ -1,262 +1,395 @@
-// Package ui — dashboard.go renders the full dashboard view from state.
+// Package ui — dashboard.go renders the K9s-inspired dashboard view.
 package ui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cesar/devdash/internal/state"
 	"github.com/charmbracelet/lipgloss"
 )
 
-const defaultPanelWidth = 36
+// ── Main dashboard renderer ─────────────────────────────────────────────────
 
-// RenderDashboard composes the full terminal view from the dashboard state.
+// RenderDashboard composes the K9s-style terminal dashboard.
 func RenderDashboard(ds *state.Dashboard, width, height int) string {
-	// ── Header ──────────────────────────────────────────────────
-	header := TitleStyle.Render("  Go Developer Dashboard  ")
-	projectLine := SubtitleStyle.Render(
-		fmt.Sprintf("Project: %s  (%s)", ds.ProjectName, ds.ProjectDir),
-	)
+	// ── Header: logo + info bar ──────────────────────────────────
+	header := renderHeader(ds, width)
 
-	// ── Panels ─────────────────────────────────────────────────
+	// ── Breadcrumbs ──────────────────────────────────────────────
+	crumbs := RenderCrumbs("Dashboard", ds.ProjectName)
+
+	// ── Stat tiles row (compact metrics) ─────────────────────────
+	statsRow := renderStatsRow(ds, width)
+
+	// ── Main content: two-column panels ──────────────────────────
 	pw := panelWidth(width)
 
-	testsPanel := renderTestsPanel(ds, pw)
-	coveragePanel := renderCoveragePanel(ds, pw)
-	lintPanel := renderLintPanel(ds, pw)
-	benchPanel := renderBenchPanel(ds, pw)
-	binaryPanel := renderBinaryPanel(ds, pw)
-	gitPanel := renderGitPanel(ds, pw)
-	depsPanel := renderDepsPanel(ds, pw)
-
-	// Arrange panels in two columns
 	leftCol := lipgloss.JoinVertical(lipgloss.Left,
-		testsPanel,
-		coveragePanel,
-		lintPanel,
-		benchPanel,
+		renderTestsSection(ds, pw),
+		renderLintSection(ds, pw),
+		renderBenchSection(ds, pw),
 	)
 	rightCol := lipgloss.JoinVertical(lipgloss.Left,
-		binaryPanel,
-		gitPanel,
-		depsPanel,
+		renderGitSection(ds, pw),
+		renderDepsSection(ds, pw),
 	)
 
-	columns := lipgloss.JoinHorizontal(lipgloss.Top, leftCol, "  ", rightCol)
+	content := lipgloss.JoinHorizontal(lipgloss.Top, leftCol, " ", rightCol)
 
-	// ── Help bar ───────────────────────────────────────────────
-	help := RenderHelp([]KeyBinding{
+	// ── Command bar (bottom) ─────────────────────────────────────
+	cmdBar1 := RenderCommandBar([]KeyBinding{
 		{Key: "t", Desc: "tests"},
-		{Key: "c", Desc: "coverage"},
+		{Key: "c", Desc: "cover"},
 		{Key: "l", Desc: "lint"},
-		{Key: "b", Desc: "benchmarks"},
-		{Key: "s", Desc: "binary size"},
-		{Key: "g", Desc: "git status"},
+		{Key: "b", Desc: "bench"},
+		{Key: "s", Desc: "build"},
+		{Key: "g", Desc: "git"},
 		{Key: "d", Desc: "deps"},
-		{Key: "r", Desc: "refresh"},
+		{Key: "r", Desc: "reset"},
 		{Key: "q", Desc: "quit"},
-	})
-	help2 := RenderHelp([]KeyBinding{
+	}, width)
+	cmdBar2 := RenderCommandBar([]KeyBinding{
 		{Key: "T", Desc: "tests detail"},
 		{Key: "L", Desc: "lint detail"},
 		{Key: "B", Desc: "bench detail"},
 		{Key: "G", Desc: "git detail"},
 		{Key: "D", Desc: "deps detail"},
-	})
+	}, width)
+
+	// ── Compose ──────────────────────────────────────────────────
+	sep := SepStyle.Render(strings.Repeat("─", clamp(width, 0, width)))
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		header,
-		projectLine,
-		columns,
-		help,
-		help2,
+		crumbs,
+		sep,
+		statsRow,
+		sep,
+		content,
+		sep,
+		cmdBar1,
+		cmdBar2,
 	)
 }
 
-// panelWidth adapts to terminal width, falling back to a default.
+// panelWidth adapts to terminal width for two-column layout.
 func panelWidth(termWidth int) int {
 	if termWidth <= 0 {
-		return defaultPanelWidth
+		return 40
 	}
-	// Two columns + 2-char gap → each column gets roughly half
-	pw := (termWidth - 4) / 2
-	if pw < 28 {
-		pw = 28
+	pw := (termWidth - 3) / 2
+	if pw < 30 {
+		pw = 30
 	}
-	if pw > 50 {
-		pw = 50
+	if pw > 60 {
+		pw = 60
 	}
 	return pw
 }
 
-// ── Individual panel renderers ──────────────────────────────────────────────
+// ── Header ──────────────────────────────────────────────────────────────────
 
-func renderTestsPanel(ds *state.Dashboard, w int) string {
-	body := statusLine(ds.Tests.Status)
-	if ds.Tests.Status == state.StatusDone {
-		pass := "PASS"
-		style := StatusPass
-		if !ds.Tests.Passed {
-			pass = "FAIL"
-			style = StatusFail
+func renderHeader(ds *state.Dashboard, width int) string {
+	logo := LogoStyle.Render("⎈ devdash")
+	ver := lipgloss.NewStyle().Foreground(ColorDim).Render("v0.1.0")
+
+	left := logo + " " + ver
+
+	// Right side: project path
+	right := lipgloss.NewStyle().Foreground(ColorDim).Render(ds.ProjectDir)
+
+	gap := width - lipgloss.Width(left) - lipgloss.Width(right) - 2
+	if gap < 1 {
+		gap = 1
+	}
+
+	return HeaderBarStyle.Width(width).Render(
+		left + strings.Repeat(" ", gap) + right,
+	)
+}
+
+// ── Top stats row ───────────────────────────────────────────────────────────
+
+func renderStatsRow(ds *state.Dashboard, width int) string {
+	chips := []string{}
+
+	// Tests status
+	chips = append(chips, statWithDot("Tests", ds.Tests.Status, func() string {
+		if ds.Tests.Passed {
+			return "PASS"
 		}
-		body = RenderStatusField("Status", pass, style) + "\n" +
-			RenderField("Packages", fmt.Sprintf("%d", ds.Tests.Packages)) + "\n" +
-			RenderField("Duration", ds.Tests.Duration.String())
-	} else if ds.Tests.Status == state.StatusError {
-		body = RenderStatusField("Status", "Error", StatusFail) + "\n" +
-			StatusFail.Render(truncate(ds.Tests.Err, 80))
-	}
-	return RenderPanel("Tests", body, w)
-}
+		return "FAIL"
+	}))
 
-func renderCoveragePanel(ds *state.Dashboard, w int) string {
-	body := statusLine(ds.Coverage.Status)
-	if ds.Coverage.Status == state.StatusDone {
-		pct := fmt.Sprintf("%.1f%%", ds.Coverage.Percentage)
-		style := coverageStyle(ds.Coverage.Percentage)
-		body = RenderStatusField("Coverage", pct, style)
-	} else if ds.Coverage.Status == state.StatusError {
-		body = RenderStatusField("Status", "Error", StatusFail)
-	}
-	return RenderPanel("Coverage", body, w)
-}
+	// Coverage
+	chips = append(chips, statWithDot("Cover", ds.Coverage.Status, func() string {
+		return fmt.Sprintf("%.0f%%", ds.Coverage.Percentage)
+	}))
 
-func renderLintPanel(ds *state.Dashboard, w int) string {
-	body := statusLine(ds.Lint.Status)
-	if ds.Lint.Status == state.StatusDone {
+	// Lint
+	chips = append(chips, statWithDot("Lint", ds.Lint.Status, func() string {
 		n := len(ds.Lint.Issues)
-		statusText := "OK"
-		style := StatusPass
-		if n > 0 {
-			statusText = fmt.Sprintf("%d issues", n)
-			style = StatusWarn
+		if n == 0 {
+			return "OK"
 		}
-		body = RenderStatusField("Status", statusText, style)
-		// Show first 5 issues
-		for i, iss := range ds.Lint.Issues {
-			if i >= 5 {
-				body += "\n" + StatusWarn.Render(fmt.Sprintf("  … and %d more", n-5))
-				break
-			}
-			body += "\n  " + lipgloss.NewStyle().Foreground(ColorDim).Render(truncate(iss, w-6))
+		return fmt.Sprintf("%d", n)
+	}))
+
+	// Binary
+	chips = append(chips, statWithDot("Binary", ds.Binary.Status, func() string {
+		return formatBytes(ds.Binary.Size)
+	}))
+
+	// Benchmarks
+	chips = append(chips, statWithDot("Bench", ds.Benchmarks.Status, func() string {
+		return fmt.Sprintf("%d", len(ds.Benchmarks.Entries))
+	}))
+
+	// Git
+	chips = append(chips, statWithDot("Git", ds.Git.Status, func() string {
+		total := len(ds.Git.Modified) + len(ds.Git.Added) + len(ds.Git.Deleted) + len(ds.Git.Other)
+		if total == 0 {
+			return "clean"
 		}
-	}
-	return RenderPanel("Lint", body, w)
+		return fmt.Sprintf("%d changes", total)
+	}))
+
+	// Deps
+	chips = append(chips, statWithDot("Deps", ds.Deps.Status, func() string {
+		return fmt.Sprintf("%d", len(ds.Deps.Deps))
+	}))
+
+	return "  " + strings.Join(chips, "    ")
 }
 
-func renderBenchPanel(ds *state.Dashboard, w int) string {
-	body := statusLine(ds.Benchmarks.Status)
-	if ds.Benchmarks.Status == state.StatusDone {
-		if len(ds.Benchmarks.Entries) == 0 {
-			body = StatusIdle.Render("No benchmarks found")
+func statWithDot(label string, s state.Status, valueFn func() string) string {
+	dot := "○"
+	dotStyle := lipgloss.NewStyle().Foreground(ColorSubtle)
+	valStr := "–"
+
+	switch s {
+	case state.StatusRunning:
+		dot = "◍"
+		dotStyle = lipgloss.NewStyle().Foreground(ColorWarning)
+		valStr = "…"
+	case state.StatusDone:
+		dot = "●"
+		dotStyle = lipgloss.NewStyle().Foreground(ColorSuccess)
+		valStr = valueFn()
+	case state.StatusError:
+		dot = "●"
+		dotStyle = lipgloss.NewStyle().Foreground(ColorDanger)
+		valStr = "err"
+	}
+
+	return fmt.Sprintf("%s %s %s",
+		dotStyle.Render(dot),
+		InfoStyle.Render(label),
+		InfoValueStyle.Render(valStr),
+	)
+}
+
+// ── Tests section ───────────────────────────────────────────────────────────
+
+func renderTestsSection(ds *state.Dashboard, w int) string {
+	var body string
+	switch ds.Tests.Status {
+	case state.StatusDone:
+		pass := StatusPass.Render("✓ PASS")
+		if !ds.Tests.Passed {
+			pass = StatusFail.Render("✗ FAIL")
+		}
+		body = fmt.Sprintf("  %s  %s  %s",
+			pass,
+			StatChip("pkg", fmt.Sprintf("%d", ds.Tests.Packages)),
+			StatChip("dur", ds.Tests.Duration.String()),
+		)
+	case state.StatusRunning:
+		body = "  " + StatusWarn.Render("◍ Running…")
+	case state.StatusError:
+		body = "  " + StatusFail.Render("● Error: "+truncate(ds.Tests.Err, w-10))
+	default:
+		body = "  " + StatusIdle.Render("○ idle — press <t>")
+	}
+	return RenderSection("Tests", body, w)
+}
+
+// ── Lint section ────────────────────────────────────────────────────────────
+
+func renderLintSection(ds *state.Dashboard, w int) string {
+	var body string
+	switch ds.Lint.Status {
+	case state.StatusDone:
+		n := len(ds.Lint.Issues)
+		if n == 0 {
+			body = "  " + StatusPass.Render("✓ No issues")
 		} else {
-			lines := ""
+			header := StatusWarn.Render(fmt.Sprintf("  ▲ %d issues", n))
+			var lines []string
+			for i, iss := range ds.Lint.Issues {
+				if i >= 4 {
+					lines = append(lines,
+						lipgloss.NewStyle().Foreground(ColorDim).Render(
+							fmt.Sprintf("    … and %d more", n-4)),
+					)
+					break
+				}
+				lines = append(lines,
+					lipgloss.NewStyle().Foreground(ColorWarning).Render(
+						fmt.Sprintf("  %d. %s", i+1, truncate(iss, w-8))),
+				)
+			}
+			body = header + "\n" + strings.Join(lines, "\n")
+		}
+	case state.StatusRunning:
+		body = "  " + StatusWarn.Render("◍ Running…")
+	case state.StatusError:
+		body = "  " + StatusFail.Render("● Error")
+	default:
+		body = "  " + StatusIdle.Render("○ idle — press <l>")
+	}
+	return RenderSection("Lint", body, w)
+}
+
+// ── Benchmarks section ──────────────────────────────────────────────────────
+
+func renderBenchSection(ds *state.Dashboard, w int) string {
+	var body string
+	switch ds.Benchmarks.Status {
+	case state.StatusDone:
+		if len(ds.Benchmarks.Entries) == 0 {
+			body = "  " + StatusIdle.Render("No benchmarks found")
+		} else {
+			cols := []TableColumn{
+				{Header: "NAME", Width: w - 28},
+				{Header: "ITERS", Width: 10},
+				{Header: "NS/OP", Width: 12},
+			}
+			header := RenderTableHeader(cols)
+			var rows []string
 			for i, e := range ds.Benchmarks.Entries {
 				if i >= 5 {
 					break
 				}
-				lines += fmt.Sprintf("%s  %d  %.0f ns/op\n",
-					ValueStyle.Render(e.Name),
-					e.Iterations,
-					e.NsPerOp,
-				)
+				rows = append(rows, RenderTableRow(
+					[]string{
+						truncate(e.Name, w-30),
+						fmt.Sprintf("%d", e.Iterations),
+						fmt.Sprintf("%.1f", e.NsPerOp),
+					}, cols, i%2 == 1))
 			}
-			body = lines
+			body = header + "\n" + strings.Join(rows, "\n")
 		}
+	case state.StatusRunning:
+		body = "  " + StatusWarn.Render("◍ Running…")
+	case state.StatusError:
+		body = "  " + StatusFail.Render("● Error: "+truncate(ds.Benchmarks.Err, w-10))
+	default:
+		body = "  " + StatusIdle.Render("○ idle — press <b>")
 	}
-	return RenderPanel("Benchmarks", body, w)
+	return RenderSection("Benchmarks", body, w)
 }
 
-func renderBinaryPanel(ds *state.Dashboard, w int) string {
-	body := statusLine(ds.Binary.Status)
-	if ds.Binary.Status == state.StatusDone {
-		body = RenderField("Size", formatBytes(ds.Binary.Size))
-	} else if ds.Binary.Status == state.StatusError {
-		body = RenderStatusField("Status", "Error", StatusFail)
-	}
-	return RenderPanel("Binary", body, w)
-}
+// ── Git section ─────────────────────────────────────────────────────────────
 
-func renderGitPanel(ds *state.Dashboard, w int) string {
-	body := statusLine(ds.Git.Status)
-	if ds.Git.Status == state.StatusDone {
+func renderGitSection(ds *state.Dashboard, w int) string {
+	var body string
+	switch ds.Git.Status {
+	case state.StatusDone:
 		total := len(ds.Git.Modified) + len(ds.Git.Added) + len(ds.Git.Deleted) + len(ds.Git.Other)
 		if total == 0 {
-			body = StatusPass.Render("Clean")
+			body = "  " + StatusPass.Render("✓ Working tree clean")
 		} else {
-			body = ""
+			var lines []string
 			if len(ds.Git.Modified) > 0 {
-				body += RenderField("Modified", fmt.Sprintf("%d", len(ds.Git.Modified))) + "\n"
+				lines = append(lines, fmt.Sprintf("  %s %s",
+					StatusWarn.Render(fmt.Sprintf("M %d", len(ds.Git.Modified))),
+					lipgloss.NewStyle().Foreground(ColorDim).Render("modified"),
+				))
 			}
 			if len(ds.Git.Added) > 0 {
-				body += RenderField("Added", fmt.Sprintf("%d", len(ds.Git.Added))) + "\n"
+				lines = append(lines, fmt.Sprintf("  %s %s",
+					StatusPass.Render(fmt.Sprintf("A %d", len(ds.Git.Added))),
+					lipgloss.NewStyle().Foreground(ColorDim).Render("added"),
+				))
 			}
 			if len(ds.Git.Deleted) > 0 {
-				body += RenderField("Deleted", fmt.Sprintf("%d", len(ds.Git.Deleted))) + "\n"
+				lines = append(lines, fmt.Sprintf("  %s %s",
+					StatusFail.Render(fmt.Sprintf("D %d", len(ds.Git.Deleted))),
+					lipgloss.NewStyle().Foreground(ColorDim).Render("deleted"),
+				))
 			}
 			if len(ds.Git.Other) > 0 {
-				body += RenderField("Untracked", fmt.Sprintf("%d", len(ds.Git.Other))) + "\n"
+				lines = append(lines, fmt.Sprintf("  %s %s",
+					lipgloss.NewStyle().Foreground(ColorDim).Bold(true).Render(fmt.Sprintf("? %d", len(ds.Git.Other))),
+					lipgloss.NewStyle().Foreground(ColorDim).Render("untracked"),
+				))
 			}
-			// Trim trailing newline
-			if len(body) > 0 && body[len(body)-1] == '\n' {
-				body = body[:len(body)-1]
-			}
+			body = strings.Join(lines, "\n")
 		}
+	case state.StatusRunning:
+		body = "  " + StatusWarn.Render("◍ Running…")
+	case state.StatusError:
+		body = "  " + StatusFail.Render("● Error: "+truncate(ds.Git.Err, w-10))
+	default:
+		body = "  " + StatusIdle.Render("○ idle — press <g>")
 	}
-	return RenderPanel("Git", body, w)
+	return RenderSection("Git", body, w)
 }
 
-func renderDepsPanel(ds *state.Dashboard, w int) string {
-	body := statusLine(ds.Deps.Status)
-	if ds.Deps.Status == state.StatusDone {
+// ── Dependencies section ────────────────────────────────────────────────────
+
+func renderDepsSection(ds *state.Dashboard, w int) string {
+	var body string
+	switch ds.Deps.Status {
+	case state.StatusDone:
 		n := len(ds.Deps.Deps)
-		body = RenderField("Modules", fmt.Sprintf("%d", n))
+		summary := StatusPass.Render(fmt.Sprintf("  %d modules", n))
+		var lines []string
 		for i, d := range ds.Deps.Deps {
 			if i >= 6 {
-				body += "\n" + lipgloss.NewStyle().Foreground(ColorDim).Render(
-					fmt.Sprintf("  … and %d more", n-6),
+				lines = append(lines,
+					lipgloss.NewStyle().Foreground(ColorDim).Render(
+						fmt.Sprintf("  … and %d more", n-6)),
 				)
 				break
 			}
-			body += "\n  " + lipgloss.NewStyle().Foreground(ColorDim).Render(truncate(d, w-6))
+			lines = append(lines,
+				lipgloss.NewStyle().Foreground(ColorFg).Render("  "+truncate(d, w-4)),
+			)
 		}
+		body = summary + "\n" + strings.Join(lines, "\n")
+	case state.StatusRunning:
+		body = "  " + StatusWarn.Render("◍ Running…")
+	case state.StatusError:
+		body = "  " + StatusFail.Render("● Error")
+	default:
+		body = "  " + StatusIdle.Render("○ idle — press <d>")
 	}
-	return RenderPanel("Dependencies", body, w)
+	return RenderSection("Dependencies", body, w)
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-func statusLine(s state.Status) string {
-	switch s {
-	case state.StatusRunning:
-		return StatusWarn.Render("Running…")
-	case state.StatusError:
-		return StatusFail.Render("Error")
-	default:
-		return StatusIdle.Render("—")
+func clamp(v, lo, hi int) int {
+	if v < lo {
+		return lo
 	}
-}
-
-func coverageStyle(pct float64) lipgloss.Style {
-	switch {
-	case pct >= 80:
-		return StatusPass
-	case pct >= 60:
-		return StatusWarn
-	default:
-		return StatusFail
+	if v > hi {
+		return hi
 	}
+	return v
 }
 
 func truncate(s string, max int) string {
+	if max < 4 {
+		max = 4
+	}
 	if len(s) <= max {
 		return s
 	}
-	if max < 4 {
-		return s[:max]
-	}
-	return s[:max-3] + "..."
+	return s[:max-3] + "…"
 }
 
 func formatBytes(b int64) string {
@@ -274,5 +407,16 @@ func formatBytes(b int64) string {
 		return fmt.Sprintf("%.1f KB", float64(b)/float64(kb))
 	default:
 		return fmt.Sprintf("%d B", b)
+	}
+}
+
+func coverageStyle(pct float64) lipgloss.Style {
+	switch {
+	case pct >= 80:
+		return StatusPass
+	case pct >= 60:
+		return StatusWarn
+	default:
+		return StatusFail
 	}
 }
