@@ -1,0 +1,22 @@
+# Binaries
+devdash
+tmp_binary
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test/coverage
+*.test
+*.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
