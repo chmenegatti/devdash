@@ -161,19 +161,19 @@ func (m Model) View() string {
 	switch m.view {
 	case viewTestsDetail:
 		detail := m.currentDetailContent()
-		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.width, m.height)
+		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.state.Version, m.width, m.height)
 	case viewLintDetail:
 		detail := m.currentDetailContent()
-		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.width, m.height)
+		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.state.Version, m.width, m.height)
 	case viewBenchDetail:
 		detail := m.currentDetailContent()
-		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.width, m.height)
+		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.state.Version, m.width, m.height)
 	case viewDepsDetail:
 		detail := m.currentDetailContent()
-		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.width, m.height)
+		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.state.Version, m.width, m.height)
 	case viewGitDetail:
 		detail := m.currentDetailContent()
-		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.width, m.height)
+		return ui.RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, m.detailViewport.View(), m.state.Version, m.width, m.height)
 	default:
 		return ui.RenderDashboard(m.state, m.width, m.height)
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -28,7 +29,7 @@ func main() {
 		logs.Infof("logger initialized at %s", logs.FilePath())
 	}
 
-	ds := state.New(project.Dir, project.Name)
+	ds := state.New(project.Dir, project.Name, resolveVersion())
 	m := app.New(ds)
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -37,4 +38,26 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error running dashboard: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func resolveVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "dev"
+	}
+
+	if info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+
+	for _, setting := range info.Settings {
+		if setting.Key == "vcs.revision" && setting.Value != "" {
+			if len(setting.Value) > 7 {
+				return "dev-" + setting.Value[:7]
+			}
+			return "dev-" + setting.Value
+		}
+	}
+
+	return "dev"
 }

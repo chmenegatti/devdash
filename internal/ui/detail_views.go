@@ -19,11 +19,11 @@ type DetailContent struct {
 
 // ── Shared detail layout ────────────────────────────────────────────────────
 
-func RenderDetailFrame(title string, crumb string, summary string, body string, width, height int) string {
+func RenderDetailFrame(title string, crumb string, summary string, body string, version string, width, height int) string {
 	// Header
 	header := HeaderBarStyle.Width(width).Render(
 		LogoStyle.Render("⎈ devdash") + "  " +
-			lipgloss.NewStyle().Foreground(ColorDim).Render("v0.1.0"),
+			lipgloss.NewStyle().Foreground(ColorDim).Render(version),
 	)
 
 	// Crumbs
@@ -71,7 +71,7 @@ func DetailBodySize(width, height int) (bodyWidth int, bodyHeight int) {
 // RenderTestsDetail renders a full-screen view of test results.
 func RenderTestsDetail(ds *state.Dashboard, width, height int) string {
 	detail := BuildTestsDetail(ds, width)
-	return RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, detail.Body, width, height)
+	return RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, detail.Body, ds.Version, width, height)
 }
 
 // BuildTestsDetail builds summary and body content for tests detail view.
@@ -117,7 +117,7 @@ func BuildTestsDetail(ds *state.Dashboard, width int) DetailContent {
 // RenderLintDetail renders a full-screen view of lint results.
 func RenderLintDetail(ds *state.Dashboard, width, height int) string {
 	detail := BuildLintDetail(ds, width)
-	return RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, detail.Body, width, height)
+	return RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, detail.Body, ds.Version, width, height)
 }
 
 // BuildLintDetail builds summary and body content for lint detail view.
@@ -169,7 +169,7 @@ func BuildLintDetail(ds *state.Dashboard, width int) DetailContent {
 // RenderBenchDetail renders a full-screen view of benchmark results.
 func RenderBenchDetail(ds *state.Dashboard, width, height int) string {
 	detail := BuildBenchDetail(ds, width)
-	return RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, detail.Body, width, height)
+	return RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, detail.Body, ds.Version, width, height)
 }
 
 // BuildBenchDetail builds summary and body content for benchmark detail view.
@@ -228,7 +228,7 @@ func BuildBenchDetail(ds *state.Dashboard, width int) DetailContent {
 // RenderDepsDetail renders a full-screen view of module dependencies.
 func RenderDepsDetail(ds *state.Dashboard, width, height int) string {
 	detail := BuildDepsDetail(ds, width)
-	return RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, detail.Body, width, height)
+	return RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, detail.Body, ds.Version, width, height)
 }
 
 // BuildDepsDetail builds summary and body content for dependencies detail view.
@@ -276,7 +276,7 @@ func BuildDepsDetail(ds *state.Dashboard, width int) DetailContent {
 // RenderGitDetail renders a full-screen view of git status.
 func RenderGitDetail(ds *state.Dashboard, width, height int) string {
 	detail := BuildGitDetail(ds, width)
-	return RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, detail.Body, width, height)
+	return RenderDetailFrame(detail.Title, detail.Crumb, detail.Summary, detail.Body, ds.Version, width, height)
 }
 
 // BuildGitDetail builds summary and body content for git detail view.

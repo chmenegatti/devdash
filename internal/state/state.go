@@ -97,6 +97,7 @@ type GitResult struct {
 type Dashboard struct {
 	ProjectDir  string
 	ProjectName string
+	Version     string
 	Notice      string
 
 	Tests      TestsResult
@@ -109,9 +110,10 @@ type Dashboard struct {
 }
 
 // New creates a new Dashboard state for the given project directory.
-func New(projectDir, projectName string) *Dashboard {
+func New(projectDir, projectName, version string) *Dashboard {
 	return &Dashboard{
 		ProjectDir:  projectDir,
 		ProjectName: projectName,
+		Version:     version,
 	}
 }

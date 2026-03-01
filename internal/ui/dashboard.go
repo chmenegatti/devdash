@@ -153,7 +153,7 @@ func dashboardGridConfig(termWidth, termHeight, panelCount int) (cols int, panel
 
 func renderHeader(ds *state.Dashboard, width int) string {
 	logo := LogoStyle.Render("⎈ devdash")
-	ver := lipgloss.NewStyle().Foreground(ColorDim).Render("v0.1.0")
+	ver := lipgloss.NewStyle().Foreground(ColorDim).Render(ds.Version)
 
 	left := logo + " " + ver
 
