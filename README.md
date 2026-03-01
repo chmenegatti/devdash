@@ -42,6 +42,7 @@
 | 📦 **Binary Size** | `s` | Build and measure compiled binary size |
 | 🌿 **Git Status** | `g` | Show modified/added/deleted/untracked files with colored indicators |
 | 📚 **Dependencies** | `d` | List all module dependencies via `go list -m all` |
+| 📝 **Markdown Report** | `m` | Generate a complete dashboard report in elegant Markdown with emojis |
 | 🔎 **Detail Views** | `Shift+Key` | Full-screen output for tests, lint, benchmarks, git & deps |
 
 ### 🎨 Design Philosophy
@@ -104,6 +105,7 @@ devdash
 | `s` | Measure binary size |
 | `g` | Check git status |
 | `d` | List dependencies |
+| `m` | Generate Markdown report |
 | `r` | Reset all panels |
 | `q` | Quit |
 
@@ -140,6 +142,7 @@ devdash/
 │   │   ├── benchmarks.go   #     go test -bench parser
 │   │   ├── binary.go       #     Binary size measurement
 │   │   ├── deps.go         #     go list -m all parser
+│   │   ├── report.go       #     Markdown report generation
 │   │   └── gitstatus.go    #     git status --short parser
 │   ├── services/           # 🔧 Shell command abstraction
 │   │   ├── exec.go         #     RunCommand wrapper
@@ -202,6 +205,7 @@ Currently **23 unit tests** covering all module parsers plus integration tests f
 We welcome contributions for any of these planned features! See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 - [ ] 🔄 **Auto-refresh** — Periodic re-run with configurable interval
+- [x] 📝 **Markdown report export** — Generate a complete dashboard report via keyboard shortcut
 - [ ] 📜 **Scrollable panels** — Scroll through long outputs in detail views
 - [ ] 🎛️ **Config file** — `.devdash.yaml` for custom panel layout, colors, and shortcuts
 - [ ] 📈 **Flame graphs** — pprof integration with inline visualization

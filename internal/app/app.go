@@ -46,6 +46,12 @@ type gitResultMsg struct {
 	result state.GitResult
 }
 
+// reportResultMsg carries the result of markdown report generation.
+type reportResultMsg struct {
+	path string
+	err  error
+}
+
 // viewMode represents which screen is currently displayed.
 type viewMode int
 
@@ -112,6 +118,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case gitResultMsg:
 		m.state.Git = msg.result
 		return m, nil
+	case reportResultMsg:
+		if msg.err != nil {
+			return m, tea.Printf("❌ Report error: %v", msg.err)
+		}
+		return m, tea.Printf("📝 Report generated: %s", msg.path)
 	}
 	return m, nil
 }
@@ -197,6 +208,8 @@ func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "D":
 		m.view = viewDepsDetail
 		return m, nil
+	case "m":
+		return m, m.runReportCmd()
 	case "r":
 		// refresh - reset all to idle
 		m.state.Tests = state.TestsResult{}
@@ -274,4 +287,26 @@ func (m Model) runGitCmd() tea.Cmd {
 		result := modules.RunGitStatus(dir)
 		return gitResultMsg{result: result}
 	}
+}
+
+// runReportCmd returns a tea.Cmd that exports a markdown report from current dashboard state.
+func (m Model) runReportCmd() tea.Cmd {
+	projectDir := m.state.ProjectDir
+	snapshot := snapshotDashboard(*m.state)
+	return func() tea.Msg {
+		path, err := modules.GenerateReportFile(projectDir, snapshot)
+		return reportResultMsg{path: path, err: err}
+	}
+}
+
+func snapshotDashboard(ds state.Dashboard) state.Dashboard {
+	s := ds
+	s.Lint.Issues = append([]string(nil), ds.Lint.Issues...)
+	s.Benchmarks.Entries = append([]state.BenchmarkEntry(nil), ds.Benchmarks.Entries...)
+	s.Deps.Deps = append([]string(nil), ds.Deps.Deps...)
+	s.Git.Modified = append([]string(nil), ds.Git.Modified...)
+	s.Git.Added = append([]string(nil), ds.Git.Added...)
+	s.Git.Deleted = append([]string(nil), ds.Git.Deleted...)
+	s.Git.Other = append([]string(nil), ds.Git.Other...)
+	return s
 }

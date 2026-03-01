@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 📦 **Binary Size** — Build and measure compiled binary size
 - 🌿 **Git Status** — `git status --short` with categorised file changes
 - 📚 **Dependencies** — `go list -m all` with module listing
+- 📝 **Markdown Report Export** — Shortcut `m` generates a full dashboard report (`devdash-report-YYYYMMDD-HHMMSS.md`)
 - 🔎 **Detail Views** — Full-screen output for tests (`T`), lint (`L`), benchmarks (`B`), git (`G`), deps (`D`)
 - 🎨 **K9s-inspired UI** — Dark theme with cyan accents, breadcrumbs, stat tiles, table layouts, command bar
 - ⚡ **Async execution** — All commands run via `tea.Cmd` goroutines, never blocking the UI

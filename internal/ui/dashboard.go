@@ -63,6 +63,7 @@ func RenderDashboard(ds *state.Dashboard, width, height int) string {
 		{Key: "s", Desc: "build"},
 		{Key: "g", Desc: "git"},
 		{Key: "d", Desc: "deps"},
+		{Key: "m", Desc: "report"},
 		{Key: "r", Desc: "reset"},
 		{Key: "q", Desc: "quit"},
 	}, width)
