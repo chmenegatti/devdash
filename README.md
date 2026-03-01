@@ -224,7 +224,7 @@ We welcome contributions for any of these planned features! See [CONTRIBUTING.md
 
 - [ ] 🔄 **Auto-refresh** — Periodic re-run with configurable interval
 - [x] 📝 **Markdown report export** — Generate a complete dashboard report via keyboard shortcut
-- [ ] 📜 **Scrollable panels** — Scroll through long outputs in detail views
+- [x] 📜 **Scrollable panels** — Scroll through long outputs in detail views
 - [ ] 🎛️ **Config file** — `.devdash.yaml` for custom panel layout, colors, and shortcuts
 - [ ] 📈 **Flame graphs** — pprof integration with inline visualization
 - [ ] 🐳 **Docker support** — Build & run inside containers
