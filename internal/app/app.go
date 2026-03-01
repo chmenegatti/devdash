@@ -2,6 +2,8 @@
 package app
 
 import (
+	"path/filepath"
+
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/cesar/devdash/internal/modules"
@@ -120,9 +122,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case reportResultMsg:
 		if msg.err != nil {
-			return m, tea.Printf("❌ Report error: %v", msg.err)
+			return m, tea.Printf("❌ Erro ao gerar relatório: %v", msg.err)
 		}
-		return m, tea.Printf("📝 Report generated: %s", msg.path)
+		fileName := filepath.Base(msg.path)
+		return m, tea.Printf("📝 Relatório gerado: %s (%s)", fileName, msg.path)
 	}
 	return m, nil
 }
