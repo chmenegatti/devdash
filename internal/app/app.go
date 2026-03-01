@@ -26,12 +26,22 @@ type lintResultMsg struct {
 	result state.LintResult
 }
 
+// viewMode represents which screen is currently displayed.
+type viewMode int
+
+const (
+	viewDashboard   viewMode = iota // Main dashboard
+	viewTestsDetail                 // Full test output
+	viewLintDetail                  // Full lint output
+)
+
 // Model is the top-level Bubble Tea model for the dashboard.
 type Model struct {
 	state  *state.Dashboard
 	width  int
 	height int
 	ready  bool
+	view   viewMode
 }
 
 // New creates a new application Model.
@@ -76,25 +86,55 @@ func (m Model) View() string {
 	if !m.ready {
 		return "Initializing..."
 	}
-	return ui.RenderDashboard(m.state, m.width, m.height)
+	switch m.view {
+	case viewTestsDetail:
+		return ui.RenderTestsDetail(m.state, m.width, m.height)
+	case viewLintDetail:
+		return ui.RenderLintDetail(m.state, m.width, m.height)
+	default:
+		return ui.RenderDashboard(m.state, m.width, m.height)
+	}
 }
 
 // handleKey processes keyboard input and returns updated model + commands.
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Global keys — work in any view
 	switch msg.String() {
 	case "q", "ctrl+c":
 		return m, tea.Quit
+	case "backspace":
+		m.view = viewDashboard
+		return m, nil
+	}
 
-	// Phase 1 placeholders - will wire up real commands in later phases.
+	// View-specific keys
+	switch m.view {
+	case viewDashboard:
+		return m.handleDashboardKey(msg)
+	default:
+		// In detail views, only global keys apply
+		return m, nil
+	}
+}
+
+// handleDashboardKey handles keys specific to the main dashboard view.
+func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
 	case "t":
 		m.state.Tests.Status = state.StatusRunning
 		return m, m.runTestsCmd()
+	case "T":
+		m.view = viewTestsDetail
+		return m, nil
 	case "c":
 		m.state.Coverage.Status = state.StatusRunning
 		return m, m.runCoverageCmd()
 	case "l":
 		m.state.Lint.Status = state.StatusRunning
 		return m, m.runLintCmd()
+	case "L":
+		m.view = viewLintDetail
+		return m, nil
 	case "b":
 		m.state.Benchmarks.Status = state.StatusRunning
 		return m, nil

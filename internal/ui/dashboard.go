@@ -55,12 +55,17 @@ func RenderDashboard(ds *state.Dashboard, width, height int) string {
 		{Key: "r", Desc: "refresh"},
 		{Key: "q", Desc: "quit"},
 	})
+	help2 := RenderHelp([]KeyBinding{
+		{Key: "T", Desc: "tests detail"},
+		{Key: "L", Desc: "lint detail"},
+	})
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		header,
 		projectLine,
 		columns,
 		help,
+		help2,
 	)
 }
 
