@@ -2,8 +2,10 @@ package modules
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/chmenegatti/devdash/internal/services"
@@ -32,7 +34,17 @@ func RunBinarySize(projectDir string) state.BinaryResult {
 		}
 	}()
 
-	res := services.RunCommand(ctx, absDir, "go", "build", "-o", tmpBin, "./cmd/dashboard")
+	res := services.RunCommand(ctx, absDir, "go", "build", "-o", tmpBin, ".")
+	if res.Err != nil {
+		target, err := detectMainBuildTarget(ctx, absDir)
+		if err != nil {
+			return state.BinaryResult{
+				Status: state.StatusError,
+				Err:    res.Err.Error() + "\n" + res.Stderr + "\n" + err.Error(),
+			}
+		}
+		res = services.RunCommand(ctx, absDir, "go", "build", "-o", tmpBin, target)
+	}
 
 	if res.Err != nil {
 		return state.BinaryResult{
@@ -53,4 +65,20 @@ func RunBinarySize(projectDir string) state.BinaryResult {
 		Status: state.StatusDone,
 		Size:   info.Size(),
 	}
+}
+
+func detectMainBuildTarget(ctx context.Context, projectDir string) (string, error) {
+	list := services.RunCommand(ctx, projectDir, "go", "list", "-f", "{{if eq .Name \"main\"}}{{.ImportPath}}{{end}}", "./...")
+	if list.Err != nil {
+		return "", fmt.Errorf("detect main package: %w\n%s", list.Err, strings.TrimSpace(list.Stderr))
+	}
+
+	for _, line := range strings.Split(list.Stdout, "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			return line, nil
+		}
+	}
+
+	return "", fmt.Errorf("no main package found in project")
 }
