@@ -1,0 +1,7 @@
+?   github.com/acme/cmd/tool [no test files]
+=== RUN   TestAlpha
+--- PASS: TestAlpha (0.00s)
+=== RUN   TestBeta
+--- PASS: TestBeta (0.00s)
+ok   github.com/acme/pkg/a 0.120s
+ok   github.com/acme/pkg/b 0.380s

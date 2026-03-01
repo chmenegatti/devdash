@@ -1,0 +1,6 @@
+goos: linux
+goarch: amd64
+BenchmarkRetry-8          1200000              1200 ns/op
+BenchmarkParse-8          5000000               300.5 ns/op
+PASS
+ok   github.com/acme/pkg/a 3.200s

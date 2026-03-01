@@ -1,0 +1,5 @@
+ M internal/app/app.go
+A  README.md
+ D old.go
+?? scratch.txt
+R  old_name.go -> new_name.go

@@ -1,0 +1,2 @@
+internal/a.go:10:2: unused variable 'x' (unused)
+internal/b.go:20:1: exported function Foo should have comment (revive)

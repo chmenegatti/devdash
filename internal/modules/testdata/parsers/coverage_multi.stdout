@@ -1,0 +1,3 @@
+github.com/acme/cmd/tool coverage: 0.0% of statements
+ok   github.com/acme/pkg/a 0.1s coverage: 80.0% of statements
+ok   github.com/acme/pkg/b 0.2s coverage: 90.0% of statements
