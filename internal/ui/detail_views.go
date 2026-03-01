@@ -141,6 +141,63 @@ func RenderLintDetail(ds *state.Dashboard, width, height int) string {
 	)
 }
 
+// RenderBenchDetail renders a full-screen view of benchmark results.
+func RenderBenchDetail(ds *state.Dashboard, width, height int) string {
+	header := detailHeader("Benchmarks — Full Output", width)
+
+	var summary string
+	if ds.Benchmarks.Status == state.StatusDone {
+		n := len(ds.Benchmarks.Entries)
+		if n == 0 {
+			summary = StatusIdle.Render("No benchmarks found")
+		} else {
+			summary = RenderField("Benchmarks", fmt.Sprintf("%d", n))
+		}
+	} else if ds.Benchmarks.Status == state.StatusRunning {
+		summary = StatusWarn.Render("Running…")
+	} else if ds.Benchmarks.Status == state.StatusError {
+		summary = RenderStatusField("Status", "Error", StatusFail) +
+			"  " + StatusFail.Render(ds.Benchmarks.Err)
+	} else {
+		summary = StatusIdle.Render("No benchmark run yet. Press b to run benchmarks.")
+	}
+
+	separator := SepStyle.Render(strings.Repeat("─", min(width-2, 80)))
+
+	var body string
+	if len(ds.Benchmarks.Entries) > 0 {
+		nameStyle := lipgloss.NewStyle().Foreground(ColorPrimary).Bold(true)
+		valStyle := lipgloss.NewStyle().Foreground(ColorWhite)
+		dimStyle := lipgloss.NewStyle().Foreground(ColorDim)
+
+		var sb strings.Builder
+		for i, e := range ds.Benchmarks.Entries {
+			sb.WriteString(fmt.Sprintf("%s  %s  %s  %s\n",
+				LabelStyle.Render(fmt.Sprintf("%3d.", i+1)),
+				nameStyle.Render(e.Name),
+				valStyle.Render(fmt.Sprintf("%d iters", e.Iterations)),
+				dimStyle.Render(fmt.Sprintf("%.1f ns/op", e.NsPerOp)),
+			))
+		}
+		body = sb.String()
+	} else {
+		body = StatusIdle.Render("(no output)")
+	}
+
+	footer := detailFooter()
+
+	return lipgloss.JoinVertical(lipgloss.Left,
+		header,
+		"",
+		summary,
+		separator,
+		"",
+		detailBody(body, width, height),
+		"",
+		footer,
+	)
+}
+
 // min returns the smaller of two ints.
 func min(a, b int) int {
 	if a < b {

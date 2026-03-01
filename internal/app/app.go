@@ -26,6 +26,11 @@ type lintResultMsg struct {
 	result state.LintResult
 }
 
+// benchResultMsg carries the result of a completed benchmark run.
+type benchResultMsg struct {
+	result state.BenchmarkResult
+}
+
 // viewMode represents which screen is currently displayed.
 type viewMode int
 
@@ -33,6 +38,7 @@ const (
 	viewDashboard   viewMode = iota // Main dashboard
 	viewTestsDetail                 // Full test output
 	viewLintDetail                  // Full lint output
+	viewBenchDetail                 // Full benchmark output
 )
 
 // Model is the top-level Bubble Tea model for the dashboard.
@@ -77,6 +83,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case lintResultMsg:
 		m.state.Lint = msg.result
 		return m, nil
+	case benchResultMsg:
+		m.state.Benchmarks = msg.result
+		return m, nil
 	}
 	return m, nil
 }
@@ -91,6 +100,8 @@ func (m Model) View() string {
 		return ui.RenderTestsDetail(m.state, m.width, m.height)
 	case viewLintDetail:
 		return ui.RenderLintDetail(m.state, m.width, m.height)
+	case viewBenchDetail:
+		return ui.RenderBenchDetail(m.state, m.width, m.height)
 	default:
 		return ui.RenderDashboard(m.state, m.width, m.height)
 	}
@@ -137,6 +148,9 @@ func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "b":
 		m.state.Benchmarks.Status = state.StatusRunning
+		return m, m.runBenchCmd()
+	case "B":
+		m.view = viewBenchDetail
 		return m, nil
 	case "g":
 		m.state.Git.Status = state.StatusRunning
@@ -184,5 +198,14 @@ func (m Model) runLintCmd() tea.Cmd {
 	return func() tea.Msg {
 		result := modules.RunLint(dir)
 		return lintResultMsg{result: result}
+	}
+}
+
+// runBenchCmd returns a tea.Cmd that runs go test -bench asynchronously.
+func (m Model) runBenchCmd() tea.Cmd {
+	dir := m.state.ProjectDir
+	return func() tea.Msg {
+		result := modules.RunBenchmarks(dir)
+		return benchResultMsg{result: result}
 	}
 }
