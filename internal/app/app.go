@@ -21,6 +21,11 @@ type coverageResultMsg struct {
 	result state.CoverageResult
 }
 
+// lintResultMsg carries the result of a completed lint run.
+type lintResultMsg struct {
+	result state.LintResult
+}
+
 // Model is the top-level Bubble Tea model for the dashboard.
 type Model struct {
 	state  *state.Dashboard
@@ -59,6 +64,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case coverageResultMsg:
 		m.state.Coverage = msg.result
 		return m, nil
+	case lintResultMsg:
+		m.state.Lint = msg.result
+		return m, nil
 	}
 	return m, nil
 }
@@ -86,7 +94,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.runCoverageCmd()
 	case "l":
 		m.state.Lint.Status = state.StatusRunning
-		return m, nil
+		return m, m.runLintCmd()
 	case "b":
 		m.state.Benchmarks.Status = state.StatusRunning
 		return m, nil
@@ -127,5 +135,14 @@ func (m Model) runCoverageCmd() tea.Cmd {
 	return func() tea.Msg {
 		result := modules.RunCoverage(dir)
 		return coverageResultMsg{result: result}
+	}
+}
+
+// runLintCmd returns a tea.Cmd that runs golangci-lint asynchronously.
+func (m Model) runLintCmd() tea.Cmd {
+	dir := m.state.ProjectDir
+	return func() tea.Msg {
+		result := modules.RunLint(dir)
+		return lintResultMsg{result: result}
 	}
 }
