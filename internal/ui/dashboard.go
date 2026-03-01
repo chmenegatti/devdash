@@ -50,6 +50,7 @@ func RenderDashboard(ds *state.Dashboard, width, height int) string {
 		{Key: "c", Desc: "coverage"},
 		{Key: "l", Desc: "lint"},
 		{Key: "b", Desc: "benchmarks"},
+		{Key: "s", Desc: "binary size"},
 		{Key: "g", Desc: "git status"},
 		{Key: "d", Desc: "deps"},
 		{Key: "r", Desc: "refresh"},
@@ -59,6 +60,8 @@ func RenderDashboard(ds *state.Dashboard, width, height int) string {
 		{Key: "T", Desc: "tests detail"},
 		{Key: "L", Desc: "lint detail"},
 		{Key: "B", Desc: "bench detail"},
+		{Key: "G", Desc: "git detail"},
+		{Key: "D", Desc: "deps detail"},
 	})
 
 	return lipgloss.JoinVertical(lipgloss.Left,

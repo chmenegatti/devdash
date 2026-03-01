@@ -1,6 +1,7 @@
 # Binaries
 devdash
 tmp_binary
+.devdash_tmp_binary
 *.exe
 *.dll
 *.so

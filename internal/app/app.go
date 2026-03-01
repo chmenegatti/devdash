@@ -31,6 +31,21 @@ type benchResultMsg struct {
 	result state.BenchmarkResult
 }
 
+// binaryResultMsg carries the result of a completed binary size check.
+type binaryResultMsg struct {
+	result state.BinaryResult
+}
+
+// depsResultMsg carries the result of a completed dependency listing.
+type depsResultMsg struct {
+	result state.DepsResult
+}
+
+// gitResultMsg carries the result of a completed git status check.
+type gitResultMsg struct {
+	result state.GitResult
+}
+
 // viewMode represents which screen is currently displayed.
 type viewMode int
 
@@ -39,6 +54,8 @@ const (
 	viewTestsDetail                 // Full test output
 	viewLintDetail                  // Full lint output
 	viewBenchDetail                 // Full benchmark output
+	viewDepsDetail                  // Full dependency list
+	viewGitDetail                   // Full git status
 )
 
 // Model is the top-level Bubble Tea model for the dashboard.
@@ -86,6 +103,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case benchResultMsg:
 		m.state.Benchmarks = msg.result
 		return m, nil
+	case binaryResultMsg:
+		m.state.Binary = msg.result
+		return m, nil
+	case depsResultMsg:
+		m.state.Deps = msg.result
+		return m, nil
+	case gitResultMsg:
+		m.state.Git = msg.result
+		return m, nil
 	}
 	return m, nil
 }
@@ -102,6 +128,10 @@ func (m Model) View() string {
 		return ui.RenderLintDetail(m.state, m.width, m.height)
 	case viewBenchDetail:
 		return ui.RenderBenchDetail(m.state, m.width, m.height)
+	case viewDepsDetail:
+		return ui.RenderDepsDetail(m.state, m.width, m.height)
+	case viewGitDetail:
+		return ui.RenderGitDetail(m.state, m.width, m.height)
 	default:
 		return ui.RenderDashboard(m.state, m.width, m.height)
 	}
@@ -152,11 +182,20 @@ func (m Model) handleDashboardKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "B":
 		m.view = viewBenchDetail
 		return m, nil
+	case "s":
+		m.state.Binary.Status = state.StatusRunning
+		return m, m.runBinaryCmd()
 	case "g":
 		m.state.Git.Status = state.StatusRunning
+		return m, m.runGitCmd()
+	case "G":
+		m.view = viewGitDetail
 		return m, nil
 	case "d":
 		m.state.Deps.Status = state.StatusRunning
+		return m, m.runDepsCmd()
+	case "D":
+		m.view = viewDepsDetail
 		return m, nil
 	case "r":
 		// refresh - reset all to idle
@@ -207,5 +246,32 @@ func (m Model) runBenchCmd() tea.Cmd {
 	return func() tea.Msg {
 		result := modules.RunBenchmarks(dir)
 		return benchResultMsg{result: result}
+	}
+}
+
+// runBinaryCmd returns a tea.Cmd that builds and measures binary size.
+func (m Model) runBinaryCmd() tea.Cmd {
+	dir := m.state.ProjectDir
+	return func() tea.Msg {
+		result := modules.RunBinarySize(dir)
+		return binaryResultMsg{result: result}
+	}
+}
+
+// runDepsCmd returns a tea.Cmd that lists module dependencies.
+func (m Model) runDepsCmd() tea.Cmd {
+	dir := m.state.ProjectDir
+	return func() tea.Msg {
+		result := modules.RunDeps(dir)
+		return depsResultMsg{result: result}
+	}
+}
+
+// runGitCmd returns a tea.Cmd that runs git status.
+func (m Model) runGitCmd() tea.Cmd {
+	dir := m.state.ProjectDir
+	return func() tea.Msg {
+		result := modules.RunGitStatus(dir)
+		return gitResultMsg{result: result}
 	}
 }

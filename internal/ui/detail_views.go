@@ -198,6 +198,119 @@ func RenderBenchDetail(ds *state.Dashboard, width, height int) string {
 	)
 }
 
+// RenderDepsDetail renders a full-screen view of module dependencies.
+func RenderDepsDetail(ds *state.Dashboard, width, height int) string {
+	header := detailHeader("Dependencies — Full List", width)
+
+	var summary string
+	if ds.Deps.Status == state.StatusDone {
+		summary = RenderField("Total modules", fmt.Sprintf("%d", len(ds.Deps.Deps)))
+	} else if ds.Deps.Status == state.StatusRunning {
+		summary = StatusWarn.Render("Running…")
+	} else if ds.Deps.Status == state.StatusError {
+		summary = RenderStatusField("Status", "Error", StatusFail) +
+			"  " + StatusFail.Render(ds.Deps.Err)
+	} else {
+		summary = StatusIdle.Render("No dependency scan yet. Press d to list deps.")
+	}
+
+	separator := SepStyle.Render(strings.Repeat("─", min(width-2, 80)))
+
+	var body string
+	if len(ds.Deps.Deps) > 0 {
+		depStyle := lipgloss.NewStyle().Foreground(ColorPrimary)
+		var sb strings.Builder
+		for i, d := range ds.Deps.Deps {
+			sb.WriteString(fmt.Sprintf("%s %s\n",
+				LabelStyle.Render(fmt.Sprintf("%3d.", i+1)),
+				depStyle.Render(d),
+			))
+		}
+		body = sb.String()
+	} else {
+		body = StatusIdle.Render("(no output)")
+	}
+
+	footer := detailFooter()
+
+	return lipgloss.JoinVertical(lipgloss.Left,
+		header,
+		"",
+		summary,
+		separator,
+		"",
+		detailBody(body, width, height),
+		"",
+		footer,
+	)
+}
+
+// RenderGitDetail renders a full-screen view of git status.
+func RenderGitDetail(ds *state.Dashboard, width, height int) string {
+	header := detailHeader("Git Status — Full Output", width)
+
+	var summary string
+	if ds.Git.Status == state.StatusDone {
+		total := len(ds.Git.Modified) + len(ds.Git.Added) + len(ds.Git.Deleted) + len(ds.Git.Other)
+		if total == 0 {
+			summary = RenderStatusField("Status", "Clean", StatusPass)
+		} else {
+			summary = RenderField("Changed files", fmt.Sprintf("%d", total))
+		}
+	} else if ds.Git.Status == state.StatusRunning {
+		summary = StatusWarn.Render("Running…")
+	} else if ds.Git.Status == state.StatusError {
+		summary = RenderStatusField("Status", "Error", StatusFail) +
+			"  " + StatusFail.Render(ds.Git.Err)
+	} else {
+		summary = StatusIdle.Render("No git status yet. Press g to check.")
+	}
+
+	separator := SepStyle.Render(strings.Repeat("─", min(width-2, 80)))
+
+	var sb strings.Builder
+	modStyle := lipgloss.NewStyle().Foreground(ColorWarning)
+	addStyle := lipgloss.NewStyle().Foreground(ColorSuccess)
+	delStyle := lipgloss.NewStyle().Foreground(ColorDanger)
+	otherStyle := lipgloss.NewStyle().Foreground(ColorDim)
+
+	renderSection := func(label string, files []string, style lipgloss.Style) {
+		if len(files) == 0 {
+			return
+		}
+		sb.WriteString(LabelStyle.Render(fmt.Sprintf("  %s (%d):", label, len(files))) + "\n")
+		for _, f := range files {
+			sb.WriteString("    " + style.Render(f) + "\n")
+		}
+		sb.WriteString("\n")
+	}
+
+	renderSection("Modified", ds.Git.Modified, modStyle)
+	renderSection("Added", ds.Git.Added, addStyle)
+	renderSection("Deleted", ds.Git.Deleted, delStyle)
+	renderSection("Untracked", ds.Git.Other, otherStyle)
+
+	body := sb.String()
+	if body == "" && ds.Git.Status == state.StatusDone {
+		body = StatusPass.Render("✓ Working tree clean")
+	} else if body == "" {
+		body = StatusIdle.Render("(no output)")
+	}
+
+	footer := detailFooter()
+
+	return lipgloss.JoinVertical(lipgloss.Left,
+		header,
+		"",
+		summary,
+		separator,
+		"",
+		detailBody(body, width, height),
+		"",
+		footer,
+	)
+}
+
 // min returns the smaller of two ints.
 func min(a, b int) int {
 	if a < b {
