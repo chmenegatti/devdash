@@ -10,7 +10,8 @@ import (
 
 func TestParseCoverageOutput_MultiPackage(t *testing.T) {
 	res := services.CommandResult{
-		Stdout: "ok  \tgithub.com/foo/bar\t0.1s\tcoverage: 80.0% of statements\n" +
+		Stdout: "github.com/foo/cmd\t\tcoverage: 0.0% of statements\n" +
+			"ok  \tgithub.com/foo/bar\t0.1s\tcoverage: 80.0% of statements\n" +
 			"ok  \tgithub.com/foo/baz\t0.2s\tcoverage: 90.0% of statements\n",
 	}
 	got := parseCoverageOutput(res)

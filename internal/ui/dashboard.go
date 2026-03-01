@@ -240,11 +240,18 @@ func renderTestsSection(ds *state.Dashboard, w int) string {
 		if !ds.Tests.Passed {
 			pass = StatusFail.Render("✗ FAIL")
 		}
+		testsValue := fmt.Sprintf("%d", ds.Tests.TestCases)
+		if ds.Tests.TestCases == 0 {
+			testsValue = "-"
+		}
 		body = fmt.Sprintf("  %s  %s  %s",
 			pass,
-			StatChip("pkg", fmt.Sprintf("%d", ds.Tests.Packages)),
+			StatChip("tests", testsValue),
 			StatChip("dur", ds.Tests.Duration.String()),
 		)
+		if ds.Tests.FailedTests > 0 {
+			body += "\n  " + StatusFail.Render(fmt.Sprintf("%d failed", ds.Tests.FailedTests))
+		}
 	case state.StatusRunning:
 		body = "  " + StatusWarn.Render("◍ Running…")
 	case state.StatusError:

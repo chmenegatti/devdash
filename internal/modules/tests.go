@@ -20,6 +20,10 @@ var (
 	rePkgFAIL = regexp.MustCompile(`^FAIL\s+\S+\s+([\d.]+)s`)
 	// Matches: ?   github.com/foo/bar[no test files]
 	rePkgSkip = regexp.MustCompile(`^\?\s+\S+`)
+	// Matches: --- PASS: TestName (0.00s)
+	reCasePASS = regexp.MustCompile(`^--- PASS: (\S+)`)
+	// Matches: --- FAIL: TestName (0.00s)
+	reCaseFAIL = regexp.MustCompile(`^--- FAIL: (\S+)`)
 )
 
 // RunTests executes `go test ./...` in the project directory and returns a
@@ -42,10 +46,12 @@ func parseTestOutput(res services.CommandResult) state.TestsResult {
 	lines := strings.Split(combined, "\n")
 
 	var (
-		passed    = true
-		pkgCount  int
-		totalSecs float64
-		hasFail   bool
+		passed      = true
+		pkgCount    int
+		totalSecs   float64
+		hasFail     bool
+		testCases   int
+		failedTests int
 	)
 
 	for _, line := range lines {
@@ -76,6 +82,17 @@ func parseTestOutput(res services.CommandResult) state.TestsResult {
 			pkgCount++
 			continue
 		}
+
+		if reCasePASS.MatchString(line) {
+			testCases++
+			continue
+		}
+
+		if reCaseFAIL.MatchString(line) {
+			testCases++
+			failedTests++
+			continue
+		}
 	}
 
 	if hasFail || res.Err != nil {
@@ -95,10 +112,12 @@ func parseTestOutput(res services.CommandResult) state.TestsResult {
 	duration := time.Duration(totalSecs * float64(time.Second))
 
 	return state.TestsResult{
-		Status:   state.StatusDone,
-		Passed:   passed,
-		Packages: pkgCount,
-		Duration: duration,
-		Output:   combined,
+		Status:      state.StatusDone,
+		Passed:      passed,
+		TestCases:   testCases,
+		FailedTests: failedTests,
+		Packages:    pkgCount,
+		Duration:    duration,
+		Output:      combined,
 	}
 }

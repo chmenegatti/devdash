@@ -204,10 +204,14 @@ func statusBadge(s state.Status) string {
 
 func testsSummary(r state.TestsResult) string {
 	if r.Status == state.StatusDone {
-		if r.Passed {
-			return fmt.Sprintf("PASS (%d packages in %s)", r.Packages, r.Duration)
+		tests := r.TestCases
+		if tests == 0 {
+			tests = r.Packages
 		}
-		return fmt.Sprintf("FAIL (%d packages in %s)", r.Packages, r.Duration)
+		if r.Passed {
+			return fmt.Sprintf("PASS (%d tests in %s)", tests, r.Duration)
+		}
+		return fmt.Sprintf("FAIL (%d tests, %d failed, in %s)", tests, r.FailedTests, r.Duration)
 	}
 	if r.Err != "" {
 		return r.Err

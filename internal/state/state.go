@@ -29,12 +29,14 @@ func (s Status) String() string {
 
 // TestsResult holds the outcome of running go test.
 type TestsResult struct {
-	Status   Status
-	Passed   bool
-	Packages int
-	Duration time.Duration
-	Output   string
-	Err      string
+	Status      Status
+	Passed      bool
+	TestCases   int
+	FailedTests int
+	Packages    int
+	Duration    time.Duration
+	Output      string
+	Err         string
 }
 
 // CoverageResult holds coverage information.

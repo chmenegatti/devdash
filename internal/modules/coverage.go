@@ -11,8 +11,9 @@ import (
 	"github.com/cesar/devdash/internal/state"
 )
 
-// reCoverage matches: coverage: 87.3% of statements
-var reCoverage = regexp.MustCompile(`coverage:\s+([\d.]+)%`)
+// reCoverageOK matches tested package lines, e.g.:
+// ok  github.com/foo/bar 0.123s coverage: 87.3% of statements
+var reCoverageOK = regexp.MustCompile(`^ok\s+\S+.*coverage:\s+([\d.]+)%`)
 
 // RunCoverage executes `go test -cover ./...` and parses the aggregate
 // coverage percentage. Blocking — call from a tea.Cmd.
@@ -43,7 +44,8 @@ func parseCoverageOutput(res services.CommandResult) state.CoverageResult {
 	var count int
 
 	for _, line := range lines {
-		if m := reCoverage.FindStringSubmatch(line); m != nil {
+		line = strings.TrimSpace(line)
+		if m := reCoverageOK.FindStringSubmatch(line); m != nil {
 			if pct, err := strconv.ParseFloat(m[1], 64); err == nil {
 				total += pct
 				count++
