@@ -4,9 +4,17 @@ package app
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/cesar/devdash/internal/modules"
 	"github.com/cesar/devdash/internal/state"
 	"github.com/cesar/devdash/internal/ui"
 )
+
+// ── Messages ────────────────────────────────────────────────────────────────
+
+// testsResultMsg carries the result of a completed test run back to Update.
+type testsResultMsg struct {
+	result state.TestsResult
+}
 
 // Model is the top-level Bubble Tea model for the dashboard.
 type Model struct {
@@ -38,6 +46,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyMsg:
 		return m.handleKey(msg)
+
+	// ── Async result messages ──────────────────────────────────
+	case testsResultMsg:
+		m.state.Tests = msg.result
+		return m, nil
 	}
 	return m, nil
 }
@@ -59,7 +72,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Phase 1 placeholders - will wire up real commands in later phases.
 	case "t":
 		m.state.Tests.Status = state.StatusRunning
-		return m, nil
+		return m, m.runTestsCmd()
 	case "c":
 		m.state.Coverage.Status = state.StatusRunning
 		return m, nil
@@ -87,4 +100,15 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, nil
+}
+
+// ── Async commands ──────────────────────────────────────────────────────────
+
+// runTestsCmd returns a tea.Cmd that runs go test asynchronously.
+func (m Model) runTestsCmd() tea.Cmd {
+	dir := m.state.ProjectDir
+	return func() tea.Msg {
+		result := modules.RunTests(dir)
+		return testsResultMsg{result: result}
+	}
 }
