@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/cesar/devdash/internal/services"
-	"github.com/cesar/devdash/internal/state"
+	"github.com/chmenegatti/devdash/internal/services"
+	"github.com/chmenegatti/devdash/internal/state"
 )
 
 // RunBinarySize builds the project into a temp binary, measures its size, and cleans up.

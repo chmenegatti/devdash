@@ -3,7 +3,7 @@ package modules
 import (
 	"testing"
 
-	"github.com/cesar/devdash/internal/state"
+	"github.com/chmenegatti/devdash/internal/state"
 )
 
 func TestRunTests_InvalidProjectDir(t *testing.T) {

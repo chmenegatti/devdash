@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cesar/devdash/internal/services"
-	"github.com/cesar/devdash/internal/state"
+	"github.com/chmenegatti/devdash/internal/services"
+	"github.com/chmenegatti/devdash/internal/state"
 )
 
 // RunDeps executes `go list -m all` and parses the module list.

@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/cesar/devdash/internal/services"
-	"github.com/cesar/devdash/internal/state"
+	"github.com/chmenegatti/devdash/internal/services"
+	"github.com/chmenegatti/devdash/internal/state"
 )
 
 func TestParseDepsOutput_MultipleModules(t *testing.T) {
 	res := services.CommandResult{
-		Stdout: "github.com/cesar/devdash\ngithub.com/charmbracelet/bubbletea v1.3.10\ngithub.com/charmbracelet/lipgloss v1.1.0\n",
+		Stdout: "github.com/chmenegatti/devdash\ngithub.com/charmbracelet/bubbletea v1.3.10\ngithub.com/charmbracelet/lipgloss v1.1.0\n",
 	}
 	result := parseDepsOutput(res)
 	if result.Status != state.StatusDone {
@@ -24,7 +24,7 @@ func TestParseDepsOutput_MultipleModules(t *testing.T) {
 
 func TestParseDepsOutput_NoExternalDeps(t *testing.T) {
 	res := services.CommandResult{
-		Stdout: "github.com/cesar/devdash\n",
+		Stdout: "github.com/chmenegatti/devdash\n",
 	}
 	result := parseDepsOutput(res)
 	if result.Status != state.StatusDone {

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cesar/devdash/internal/services"
+	"github.com/chmenegatti/devdash/internal/services"
 )
 
 func TestParserGoldens(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cesar/devdash/internal/state"
+	"github.com/chmenegatti/devdash/internal/state"
 )
 
 func TestGenerateMarkdownReport_IncludesAllSections(t *testing.T) {
@@ -19,7 +19,7 @@ func TestGenerateMarkdownReport_IncludesAllSections(t *testing.T) {
 			Passed:   true,
 			Packages: 7,
 			Duration: 2 * time.Second,
-			Output:   "ok github.com/cesar/devdash 2.0s",
+			Output:   "ok github.com/chmenegatti/devdash 2.0s",
 		},
 		Coverage: state.CoverageResult{
 			Status:     state.StatusDone,

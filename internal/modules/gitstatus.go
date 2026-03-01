@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cesar/devdash/internal/services"
-	"github.com/cesar/devdash/internal/state"
+	"github.com/chmenegatti/devdash/internal/services"
+	"github.com/chmenegatti/devdash/internal/state"
 )
 
 // RunGitStatus executes `git status --short` and categorizes changed files.

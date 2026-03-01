@@ -6,9 +6,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/cesar/devdash/internal/modules"
-	"github.com/cesar/devdash/internal/state"
-	"github.com/cesar/devdash/internal/ui"
+	"github.com/chmenegatti/devdash/internal/modules"
+	"github.com/chmenegatti/devdash/internal/state"
+	"github.com/chmenegatti/devdash/internal/ui"
 )
 
 // ── Messages ────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-module github.com/cesar/devdash
+module github.com/chmenegatti/devdash
 
 go 1.25.4
 

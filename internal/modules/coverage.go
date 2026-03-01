@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cesar/devdash/internal/services"
-	"github.com/cesar/devdash/internal/state"
+	"github.com/chmenegatti/devdash/internal/services"
+	"github.com/chmenegatti/devdash/internal/state"
 )
 
 // reCoverageOK matches tested package lines, e.g.:

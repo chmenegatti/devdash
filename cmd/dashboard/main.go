@@ -7,9 +7,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/cesar/devdash/internal/app"
-	"github.com/cesar/devdash/internal/models"
-	"github.com/cesar/devdash/internal/state"
+	"github.com/chmenegatti/devdash/internal/app"
+	"github.com/chmenegatti/devdash/internal/models"
+	"github.com/chmenegatti/devdash/internal/state"
 )
 
 func main() {

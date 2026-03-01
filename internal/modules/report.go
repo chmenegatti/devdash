@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cesar/devdash/internal/state"
+	"github.com/chmenegatti/devdash/internal/state"
 )
 
 // GenerateReportFile creates a markdown report for the current dashboard state

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cesar/devdash/internal/state"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/chmenegatti/devdash/internal/state"
 )
 
 // ── Main dashboard renderer ─────────────────────────────────────────────────

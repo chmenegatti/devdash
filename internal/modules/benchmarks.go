@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cesar/devdash/internal/services"
-	"github.com/cesar/devdash/internal/state"
+	"github.com/chmenegatti/devdash/internal/services"
+	"github.com/chmenegatti/devdash/internal/state"
 )
 
 // reBench matches: BenchmarkRetry-8    1200000    1200 ns/op

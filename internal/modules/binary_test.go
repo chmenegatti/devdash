@@ -3,7 +3,7 @@ package modules
 import (
 	"testing"
 
-	"github.com/cesar/devdash/internal/state"
+	"github.com/chmenegatti/devdash/internal/state"
 )
 
 func TestRunBinarySize_Integration(t *testing.T) {
