@@ -72,6 +72,46 @@ Inspired by [K9s](https://k9scli.io/) — the legendary Kubernetes TUI — **dev
 go install github.com/chmenegatti/devdash/cmd/dashboard@latest
 ```
 
+### Post-install (PATH setup)
+
+If `dashboard` is not found after installation, add your Go bin directory to `PATH`.
+
+```bash
+# Quick check
+command -v dashboard
+
+# Show install dirs
+go env GOBIN GOPATH
+```
+
+**Option A — asdf Go (recommended when using asdf):**
+
+```bash
+echo 'export PATH="$(go env GOBIN):$PATH"' >> ~/.zshrc
+source ~/.zshrc
+asdf reshim golang
+```
+
+**Option B — custom `GOBIN`:**
+
+```bash
+echo 'export PATH="$(go env GOBIN):$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+**Option C — default Go (`$GOPATH/bin`):**
+
+```bash
+echo 'export PATH="$(go env GOPATH)/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+**Temporary (current shell only):**
+
+```bash
+export PATH="$(go env GOBIN):$PATH"
+```
+
 ### Or clone and build
 
 ```bash
@@ -126,6 +166,10 @@ devdash
 
 ```
 devdash/
+├── .github/
+│   └── workflows/
+│       ├── ci.yml          # ✅ Build/test/lint checks
+│       └── release.yml     # 🚀 Tagged release artifacts
 ├── cmd/
 │   └── dashboard/          # 🚀 Application entrypoint
 │       └── main.go
@@ -155,7 +199,7 @@ devdash/
 │       ├── styles.go       #     Color palette & Lipgloss styles
 │       ├── components.go   #     Logo, crumbs, tables, command bar
 │       ├── dashboard.go    #     Main dashboard composition
-│       └── detail_views.go #     Full-screen detail renderers
+│       └── detail_views.go #     Full-screen detail renderers (+ scrollable output)
 ├── go.mod
 ├── go.sum
 ├── LICENSE
