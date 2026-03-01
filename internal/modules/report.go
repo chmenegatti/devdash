@@ -28,8 +28,8 @@ func generateMarkdownReport(ds state.Dashboard, generatedAt time.Time) string {
 	var sb strings.Builder
 
 	fmt.Fprintf(&sb, "# 🧾 devdash Report\n\n")
-	fmt.Fprintf(&sb, "> **Project:** `%s`  \\n", ds.ProjectName)
-	fmt.Fprintf(&sb, "> **Path:** `%s`  \\n", ds.ProjectDir)
+	fmt.Fprintf(&sb, "> **Project:** `%s`  \n", ds.ProjectName)
+	fmt.Fprintf(&sb, "> **Path:** `%s`  \n", ds.ProjectDir)
 	fmt.Fprintf(&sb, "> **Generated at:** %s\n\n", generatedAt.Format("2006-01-02 15:04:05 MST"))
 
 	sb.WriteString("## 📌 Executive Summary\n\n")
