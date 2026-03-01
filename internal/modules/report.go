@@ -59,9 +59,13 @@ func generateMarkdownReport(ds state.Dashboard, generatedAt time.Time) string {
 }
 
 func writeTestsSection(sb *strings.Builder, r state.TestsResult) {
+	testCases, failedCount := resolveTestCounts(r)
+
 	sb.WriteString("## 🧪 Tests\n\n")
 	fmt.Fprintf(sb, "- **Status:** %s\n", statusBadge(r.Status))
 	fmt.Fprintf(sb, "- **Passed:** %t\n", r.Passed)
+	fmt.Fprintf(sb, "- **Test cases:** %d\n", testCases)
+	fmt.Fprintf(sb, "- **Failed tests:** %d\n", failedCount)
 	fmt.Fprintf(sb, "- **Packages:** %d\n", r.Packages)
 	fmt.Fprintf(sb, "- **Duration:** %s\n\n", r.Duration)
 	sb.WriteString("- **Validation scope:** all project packages (`go test -v -count=1 ./...`)\n\n")
@@ -204,19 +208,30 @@ func statusBadge(s state.Status) string {
 
 func testsSummary(r state.TestsResult) string {
 	if r.Status == state.StatusDone {
-		tests := r.TestCases
-		if tests == 0 {
-			tests = r.Packages
-		}
+		tests, failedTests := resolveTestCounts(r)
 		if r.Passed {
 			return fmt.Sprintf("PASS (%d tests in %s)", tests, r.Duration)
 		}
-		return fmt.Sprintf("FAIL (%d tests, %d failed, in %s)", tests, r.FailedTests, r.Duration)
+		return fmt.Sprintf("FAIL (%d tests, %d failed, in %s)", tests, failedTests, r.Duration)
 	}
 	if r.Err != "" {
 		return r.Err
 	}
 	return "No run yet"
+}
+
+func resolveTestCounts(r state.TestsResult) (tests int, failed int) {
+	passedTests, failedTests := extractTestCaseResults(r.Output)
+	if len(passedTests)+len(failedTests) > 0 {
+		return len(passedTests) + len(failedTests), len(failedTests)
+	}
+
+	tests = r.TestCases
+	failed = r.FailedTests
+	if tests == 0 {
+		tests = r.Packages
+	}
+	return tests, failed
 }
 
 func extractTestCaseResults(output string) (passed []string, failed []string) {
