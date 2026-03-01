@@ -12,6 +12,9 @@ tmp_binary
 *.out
 coverage.html
 
+# Runtime logs
+.devdash.log
+
 # IDE
 .idea/
 .vscode/
