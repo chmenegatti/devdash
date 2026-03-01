@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +18,8 @@ const (
 	flamegraphMaxNodes = 120
 	flamegraphBarWidth = 22
 )
+
+const noSamplesFlamegraph = "No CPU samples captured.\n\nTry one of the following:\n- run profiling in a package with heavier tests\n- run profiling while benchmarks exist in the package\n- run profiling multiple times (sampling can miss very short runs)"
 
 type flameNode struct {
 	name     string
@@ -37,7 +40,7 @@ func RunCPUProfile(projectDir string) state.ProfileResult {
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
 	defer cancel()
 
-	targetPkg, err := detectProfileTargetPackage(ctx, projectDir)
+	targetPkgs, err := detectProfileTargetPackages(ctx, projectDir)
 	if err != nil {
 		return state.ProfileResult{
 			Status: state.StatusError,
@@ -45,12 +48,46 @@ func RunCPUProfile(projectDir string) state.ProfileResult {
 		}
 	}
 
-	tmp, err := os.CreateTemp("", "devdash-cpu-*.pprof")
-	if err != nil {
+	var lastErr error
+	for _, targetPkg := range targetPkgs {
+		flame, total, unit, err := runProfileForPackage(ctx, projectDir, targetPkg)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if total == 0 {
+			continue
+		}
+
+		return state.ProfileResult{
+			Status:        state.StatusDone,
+			TargetPackage: targetPkg,
+			TotalSamples:  total,
+			SampleUnit:    unit,
+			Flamegraph:    flame,
+		}
+	}
+
+	if lastErr != nil {
 		return state.ProfileResult{
 			Status: state.StatusError,
-			Err:    "create temp profile: " + err.Error(),
+			Err:    lastErr.Error(),
 		}
+	}
+
+	return state.ProfileResult{
+		Status:        state.StatusDone,
+		TargetPackage: targetPkgs[0],
+		TotalSamples:  0,
+		SampleUnit:    "samples",
+		Flamegraph:    noSamplesFlamegraph,
+	}
+}
+
+func runProfileForPackage(ctx context.Context, projectDir, targetPkg string) (flamegraph string, total int64, sampleUnit string, err error) {
+	tmp, err := os.CreateTemp("", "devdash-cpu-*.pprof")
+	if err != nil {
+		return "", 0, "", fmt.Errorf("create temp profile: %w", err)
 	}
 	tmpPath := tmp.Name()
 	_ = tmp.Close()
@@ -58,65 +95,76 @@ func RunCPUProfile(projectDir string) state.ProfileResult {
 
 	res := services.RunCommand(ctx, projectDir, "go", "test", "-count=1", "-cpuprofile="+tmpPath, targetPkg)
 	if res.Err != nil {
-		return state.ProfileResult{
-			Status:        state.StatusError,
-			TargetPackage: targetPkg,
-			Err:           strings.TrimSpace(res.Err.Error() + "\n" + res.Stderr),
-		}
+		return "", 0, "", fmt.Errorf("profile %s: %w\n%s", targetPkg, res.Err, strings.TrimSpace(res.Stderr))
 	}
 
 	f, err := os.Open(tmpPath)
 	if err != nil {
-		return state.ProfileResult{
-			Status:        state.StatusError,
-			TargetPackage: targetPkg,
-			Err:           "open cpu profile: " + err.Error(),
-		}
+		return "", 0, "", fmt.Errorf("open cpu profile: %w", err)
 	}
 	defer func() { _ = f.Close() }()
 
 	prof, err := profile.Parse(f)
 	if err != nil {
-		return state.ProfileResult{
-			Status:        state.StatusError,
-			TargetPackage: targetPkg,
-			Err:           "parse cpu profile: " + err.Error(),
-		}
+		return "", 0, "", fmt.Errorf("parse cpu profile: %w", err)
 	}
 
 	flame, total := buildInlineFlamegraph(prof)
-	if total == 0 {
-		return state.ProfileResult{
-			Status:        state.StatusError,
-			TargetPackage: targetPkg,
-			Err:           "profile has no CPU samples",
-		}
-	}
-
-	return state.ProfileResult{
-		Status:        state.StatusDone,
-		TargetPackage: targetPkg,
-		TotalSamples:  total,
-		SampleUnit:    profileSampleUnit(prof),
-		Flamegraph:    flame,
-	}
+	return flame, total, profileSampleUnit(prof), nil
 }
 
-func detectProfileTargetPackage(ctx context.Context, projectDir string) (string, error) {
-	tmpl := `{{if or (gt (len .TestGoFiles) 0) (gt (len .XTestGoFiles) 0)}}{{.ImportPath}}{{end}}`
+func detectProfileTargetPackages(ctx context.Context, projectDir string) ([]string, error) {
+	tmpl := `{{if or (gt (len .TestGoFiles) 0) (gt (len .XTestGoFiles) 0)}}{{len .TestGoFiles}} {{len .XTestGoFiles}} {{.ImportPath}}{{end}}`
 	list := services.RunCommand(ctx, projectDir, "go", "list", "-f", tmpl, "./...")
 	if list.Err != nil {
-		return "", fmt.Errorf("detect profile package: %w\n%s", list.Err, strings.TrimSpace(list.Stderr))
+		return nil, fmt.Errorf("detect profile package: %w\n%s", list.Err, strings.TrimSpace(list.Stderr))
 	}
+
+	type candidate struct {
+		pkg   string
+		score int
+	}
+
+	var candidates []candidate
 
 	for _, line := range strings.Split(list.Stdout, "\n") {
-		pkg := strings.TrimSpace(line)
-		if pkg != "" {
-			return pkg, nil
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
 		}
+		parts := strings.Fields(line)
+		if len(parts) < 3 {
+			continue
+		}
+		testsN, err1 := strconv.Atoi(parts[0])
+		xTestsN, err2 := strconv.Atoi(parts[1])
+		if err1 != nil || err2 != nil {
+			continue
+		}
+		pkg := strings.Join(parts[2:], " ")
+		if pkg == "" {
+			continue
+		}
+		candidates = append(candidates, candidate{pkg: pkg, score: testsN + xTestsN})
 	}
 
-	return "", fmt.Errorf("no Go package with tests found for CPU profiling")
+	if len(candidates) == 0 {
+		return nil, fmt.Errorf("no Go package with tests found for CPU profiling")
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].score == candidates[j].score {
+			return candidates[i].pkg < candidates[j].pkg
+		}
+		return candidates[i].score > candidates[j].score
+	})
+
+	pkgs := make([]string, 0, len(candidates))
+	for _, c := range candidates {
+		pkgs = append(pkgs, c.pkg)
+	}
+
+	return pkgs, nil
 }
 
 func buildInlineFlamegraph(prof *profile.Profile) (string, int64) {

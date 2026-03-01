@@ -30,3 +30,12 @@ func TestRenderFlamegraphTree_SortedByWeight(t *testing.T) {
 		t.Fatalf("expected heavier node first, got:\n%s", out)
 	}
 }
+
+func TestNoSamplesFlamegraph_HasGuidance(t *testing.T) {
+	if !strings.Contains(noSamplesFlamegraph, "No CPU samples captured") {
+		t.Fatalf("expected guidance message, got %q", noSamplesFlamegraph)
+	}
+	if !strings.Contains(noSamplesFlamegraph, "heavier tests") {
+		t.Fatalf("expected actionable guidance, got %q", noSamplesFlamegraph)
+	}
+}
