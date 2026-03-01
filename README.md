@@ -5,6 +5,7 @@
   <img src="https://img.shields.io/github/issues/chmenegatti/devdash?style=for-the-badge&color=ff5f5f" alt="Issues">
   <img src="https://img.shields.io/github/actions/workflow/status/chmenegatti/devdash/ci.yml?style=for-the-badge&label=CI" alt="CI">
   <img src="https://img.shields.io/codecov/c/github/chmenegatti/devdash?style=for-the-badge&label=Coverage" alt="Coverage">
+  <img src="https://goreportcard.com/badge/github.com/chmenegatti/devdash?style=for-the-badge" alt="Go Report Card">
 </p>
 
 <h1 align="center">
