@@ -51,13 +51,15 @@ func StatusDot(label string, style lipgloss.Style) string {
 // ── Section panel ───────────────────────────────────────────────────────────
 
 // RenderSection renders a K9s-style bordered section with a title label.
-func RenderSection(title, body string, width int) string {
+func RenderSection(title, body string, width int, height ...int) string {
 	titleBar := SectionTitleStyle.Render("╸" + title + "╺")
 	content := titleBar + "\n" + body
 
-	return SectionBorder.
-		Width(width).
-		Render(content)
+	style := SectionBorder.Width(width)
+	if len(height) > 0 && height[0] > 0 {
+		style = style.Height(height[0])
+	}
+	return style.Render(content)
 }
 
 // RenderPanel is kept for backward compat. Delegates to RenderSection.
@@ -131,12 +133,13 @@ type KeyBinding struct {
 func RenderHelp(bindings []KeyBinding) string {
 	parts := make([]string, len(bindings))
 	for i, b := range bindings {
-		parts[i] = fmt.Sprintf("%s %s",
-			KeyStyle.Render("<"+b.Key+">"),
-			lipgloss.NewStyle().Foreground(ColorFg).Render(b.Desc),
+		parts[i] = lipgloss.JoinHorizontal(
+			lipgloss.Center,
+			HotkeyBoxStyle.Render(b.Key),
+			HotkeyDescStyle.Render(b.Desc),
 		)
 	}
-	return HelpStyle.Render(strings.Join(parts, "  "))
+	return HelpStyle.Render(strings.Join(parts, "   "))
 }
 
 // RenderCommandBar renders a full-width bottom bar with key hints.

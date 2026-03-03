@@ -72,11 +72,14 @@ var InfoValueStyle = lipgloss.NewStyle().
 
 // ── Section / Panel ─────────────────────────────────────────────────────────
 
-// SectionBorder uses a thin line box.
+// SectionBorder uses a rounded line box and a subtle background inner color.
 var SectionBorder = lipgloss.NewStyle().
-	Border(lipgloss.NormalBorder()).
+	Border(lipgloss.RoundedBorder()).
 	BorderForeground(ColorBorder).
 	Padding(0, 1)
+
+// PanelBackground sets the inner background color of the full-screen panels.
+var PanelBackground = lipgloss.NewStyle().Background(ColorBg)
 
 // SectionTitleStyle renders a panel header label.
 var SectionTitleStyle = lipgloss.NewStyle().
@@ -145,6 +148,18 @@ var HelpStyle = lipgloss.NewStyle().
 var KeyStyle = lipgloss.NewStyle().
 	Foreground(ColorAccent).
 	Bold(true)
+
+// HotkeyBoxStyle wraps the shortcut key in a subtle box.
+var HotkeyBoxStyle = lipgloss.NewStyle().
+	Foreground(ColorBg).
+	Background(ColorAccentDim).
+	Bold(true).
+	Padding(0, 1).
+	MarginRight(1)
+
+// HotkeyDescStyle styles the action description next to the hotkey box.
+var HotkeyDescStyle = lipgloss.NewStyle().
+	Foreground(ColorFg)
 
 // ── Separators ──────────────────────────────────────────────────────────────
 

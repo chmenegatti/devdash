@@ -24,7 +24,19 @@ func RenderDashboard(ds *state.Dashboard, width, height int) string {
 	noticeLine := renderNotice(ds, width)
 
 	// ── Main content: responsive uniform grid ────────────────────
-	renderers := []func(*state.Dashboard, int) string{
+	// Calculate available height for the grid
+	// Header(1) + Crumbs(1) + Sep(1) + Stats(1) + Notice(0 or 1) + Sep(1) + Grid(H) + Sep(1) + Bar1(1) + Bar2(1)
+	fixedElementsHeight := 1 + 1 + 1 + 1 + 1 + 1 + 1
+	if noticeLine != "" {
+		fixedElementsHeight++
+	}
+
+	gridHeight := height - fixedElementsHeight
+	if gridHeight < 10 {
+		gridHeight = 10 // minimum fallback
+	}
+
+	renderers := []func(*state.Dashboard, int, int) string{
 		renderTestsSection,
 		renderCoverageSection,
 		renderLintSection,
@@ -35,15 +47,21 @@ func RenderDashboard(ds *state.Dashboard, width, height int) string {
 		renderProfileSection,
 	}
 
-	cols, panelW := dashboardGridConfig(width, height, len(renderers))
-	if cols < 1 {
-		cols = 1
-	}
+	cols, rows, panelW, panelH := dashboardGridConfig(width, gridHeight, len(renderers))
 
 	columns := make([][]string, cols)
 	for i, render := range renderers {
 		colIdx := i % cols
-		columns[colIdx] = append(columns[colIdx], render(ds, panelW))
+
+		// Calculate h avoiding extrapolation due to integer division, minus borders
+		h := panelH
+		rowIdx := i / cols
+		if rowIdx == rows-1 {
+			// for the last row, give it the remainder, but safely subtract borderHeight
+			h += (gridHeight - (rows * (panelH + 2)))
+		}
+
+		columns[colIdx] = append(columns[colIdx], render(ds, panelW, h))
 	}
 
 	columnViews := make([]string, 0, cols)
@@ -55,6 +73,13 @@ func RenderDashboard(ds *state.Dashboard, width, height int) string {
 	}
 
 	content := lipgloss.JoinHorizontal(lipgloss.Top, append([]string{}, columnViews...)...)
+
+	// Determine if we need to pad the content area to push the footer down
+	contentHeight := lipgloss.Height(content)
+	if contentHeight < gridHeight {
+		padding := strings.Repeat("\n", gridHeight-contentHeight)
+		content = lipgloss.JoinVertical(lipgloss.Left, content, padding)
+	}
 
 	// ── Command bar (bottom) ─────────────────────────────────────
 	cmdBar1 := RenderCommandBar([]KeyBinding{
@@ -82,18 +107,14 @@ func RenderDashboard(ds *state.Dashboard, width, height int) string {
 	// ── Compose ──────────────────────────────────────────────────
 	sep := SepStyle.Render(strings.Repeat("─", clamp(width, 0, width)))
 
-	return lipgloss.JoinVertical(lipgloss.Left,
-		header,
-		crumbs,
-		sep,
-		statsRow,
-		noticeLine,
-		sep,
-		content,
-		sep,
-		cmdBar1,
-		cmdBar2,
-	)
+	var topParts []string
+	topParts = append(topParts, header, crumbs, sep, statsRow)
+	if noticeLine != "" {
+		topParts = append(topParts, noticeLine)
+	}
+	topParts = append(topParts, sep, content, sep, cmdBar1, cmdBar2)
+
+	return lipgloss.JoinVertical(lipgloss.Left, topParts...)
 }
 
 func renderNotice(ds *state.Dashboard, width int) string {
@@ -116,14 +137,15 @@ func renderNotice(ds *state.Dashboard, width int) string {
 }
 
 // dashboardGridConfig chooses a responsive panel grid based on terminal size.
-func dashboardGridConfig(termWidth, termHeight, panelCount int) (cols int, panelWidth int) {
+func dashboardGridConfig(termWidth, gridHeight, panelCount int) (cols, rows, panelWidth, panelHeight int) {
 	if termWidth <= 0 {
 		termWidth = 120
 	}
-	if termHeight <= 0 {
-		termHeight = 40
+	if gridHeight <= 0 {
+		gridHeight = 40
 	}
 
+	// Determine Columns
 	cols = 1
 	if termWidth >= 170 {
 		cols = 3
@@ -131,25 +153,35 @@ func dashboardGridConfig(termWidth, termHeight, panelCount int) (cols int, panel
 		cols = 2
 	}
 
-	// If height is tight, spread panels across more columns when possible.
-	if termHeight < 32 && termWidth >= 170 {
-		cols = 3
-	}
-
 	if cols > panelCount {
 		cols = panelCount
 	}
 
+	// Calculate Rows needed
+	rows = panelCount / cols
+	if panelCount%cols != 0 {
+		rows++
+	}
+
+	// Calculate Widths
 	gap := 1
 	panelWidth = (termWidth - (cols-1)*gap) / cols
 	if panelWidth < 30 {
 		panelWidth = 30
 	}
-	if panelWidth > 58 {
-		panelWidth = 58
+
+	// Calculate Heights
+	// The SectionBorder uses RoundedBorder which adds 2 to the height (top+bottom).
+	// Let's explicitly subtract the border size and any gap to ensure it fits.
+	borderHeight := 2
+	totalBorderHeight := rows * borderHeight
+	panelHeight = (gridHeight - totalBorderHeight) / rows
+
+	if panelHeight < 5 {
+		panelHeight = 5
 	}
 
-	return cols, panelWidth
+	return cols, rows, panelWidth, panelHeight
 }
 
 // ── Header ──────────────────────────────────────────────────────────────────
@@ -264,7 +296,7 @@ func statWithDot(label string, s state.Status, valueFn func() string) string {
 
 // ── Tests section ───────────────────────────────────────────────────────────
 
-func renderTestsSection(ds *state.Dashboard, w int) string {
+func renderTestsSection(ds *state.Dashboard, w, h int) string {
 	var body string
 	switch ds.Tests.Status {
 	case state.StatusDone:
@@ -291,10 +323,10 @@ func renderTestsSection(ds *state.Dashboard, w int) string {
 	default:
 		body = "  " + StatusIdle.Render("○ idle — press <t>")
 	}
-	return RenderSection("Tests", body, w)
+	return RenderSection("Tests", body, w, h)
 }
 
-func renderCoverageSection(ds *state.Dashboard, w int) string {
+func renderCoverageSection(ds *state.Dashboard, w, h int) string {
 	var body string
 	switch ds.Coverage.Status {
 	case state.StatusDone:
@@ -316,12 +348,12 @@ func renderCoverageSection(ds *state.Dashboard, w int) string {
 	default:
 		body = "  " + StatusIdle.Render("○ idle — press <c>")
 	}
-	return RenderSection("Coverage", body, w)
+	return RenderSection("Coverage", body, w, h)
 }
 
 // ── Lint section ────────────────────────────────────────────────────────────
 
-func renderLintSection(ds *state.Dashboard, w int) string {
+func renderLintSection(ds *state.Dashboard, w, h int) string {
 	var body string
 	switch ds.Lint.Status {
 	case state.StatusDone:
@@ -331,11 +363,18 @@ func renderLintSection(ds *state.Dashboard, w int) string {
 		} else {
 			header := StatusWarn.Render(fmt.Sprintf("  ▲ %d issues", n))
 			var lines []string
+
+			// Calculate how many issues we can show based on panel height (-3 for borders/header)
+			maxLines := h - 3
+			if maxLines < 1 {
+				maxLines = 1
+			}
+
 			for i, iss := range ds.Lint.Issues {
-				if i >= 4 {
+				if i >= maxLines-1 && i < len(ds.Lint.Issues)-1 {
 					lines = append(lines,
 						lipgloss.NewStyle().Foreground(ColorDim).Render(
-							fmt.Sprintf("    … and %d more", n-4)),
+							fmt.Sprintf("    … and %d more", n-i)),
 					)
 					break
 				}
@@ -353,12 +392,12 @@ func renderLintSection(ds *state.Dashboard, w int) string {
 	default:
 		body = "  " + StatusIdle.Render("○ idle — press <l>")
 	}
-	return RenderSection("Lint", body, w)
+	return RenderSection("Lint", body, w, h)
 }
 
 // ── Benchmarks section ──────────────────────────────────────────────────────
 
-func renderBenchSection(ds *state.Dashboard, w int) string {
+func renderBenchSection(ds *state.Dashboard, w, h int) string {
 	var body string
 	switch ds.Benchmarks.Status {
 	case state.StatusDone:
@@ -372,8 +411,15 @@ func renderBenchSection(ds *state.Dashboard, w int) string {
 			}
 			header := RenderTableHeader(cols)
 			var rows []string
+
+			// Dynamic row count based on height
+			maxRows := h - 4
+			if maxRows < 1 {
+				maxRows = 1
+			}
+
 			for i, e := range ds.Benchmarks.Entries {
-				if i >= 5 {
+				if i >= maxRows {
 					break
 				}
 				rows = append(rows, RenderTableRow(
@@ -392,10 +438,10 @@ func renderBenchSection(ds *state.Dashboard, w int) string {
 	default:
 		body = "  " + StatusIdle.Render("○ idle — press <b>")
 	}
-	return RenderSection("Benchmarks", body, w)
+	return RenderSection("Benchmarks", body, w, h)
 }
 
-func renderBinarySection(ds *state.Dashboard, w int) string {
+func renderBinarySection(ds *state.Dashboard, w, h int) string {
 	var body string
 	switch ds.Binary.Status {
 	case state.StatusDone:
@@ -410,12 +456,12 @@ func renderBinarySection(ds *state.Dashboard, w int) string {
 	default:
 		body = "  " + StatusIdle.Render("○ idle — press <s>")
 	}
-	return RenderSection("Binary", body, w)
+	return RenderSection("Binary", body, w, h)
 }
 
 // ── Git section ─────────────────────────────────────────────────────────────
 
-func renderGitSection(ds *state.Dashboard, w int) string {
+func renderGitSection(ds *state.Dashboard, w, h int) string {
 	var body string
 	switch ds.Git.Status {
 	case state.StatusDone:
@@ -457,23 +503,29 @@ func renderGitSection(ds *state.Dashboard, w int) string {
 	default:
 		body = "  " + StatusIdle.Render("○ idle — press <g>")
 	}
-	return RenderSection("Git", body, w)
+	return RenderSection("Git", body, w, h)
 }
 
 // ── Dependencies section ────────────────────────────────────────────────────
 
-func renderDepsSection(ds *state.Dashboard, w int) string {
+func renderDepsSection(ds *state.Dashboard, w, h int) string {
 	var body string
 	switch ds.Deps.Status {
 	case state.StatusDone:
 		n := len(ds.Deps.Deps)
 		summary := StatusPass.Render(fmt.Sprintf("  %d modules", n))
 		var lines []string
+
+		maxLines := h - 3
+		if maxLines < 1 {
+			maxLines = 1
+		}
+
 		for i, d := range ds.Deps.Deps {
-			if i >= 6 {
+			if i >= maxLines-1 && i < len(ds.Deps.Deps)-1 {
 				lines = append(lines,
 					lipgloss.NewStyle().Foreground(ColorDim).Render(
-						fmt.Sprintf("  … and %d more", n-6)),
+						fmt.Sprintf("  … and %d more", n-i)),
 				)
 				break
 			}
@@ -489,10 +541,10 @@ func renderDepsSection(ds *state.Dashboard, w int) string {
 	default:
 		body = "  " + StatusIdle.Render("○ idle — press <d>")
 	}
-	return RenderSection("Dependencies", body, w)
+	return RenderSection("Dependencies", body, w, h)
 }
 
-func renderProfileSection(ds *state.Dashboard, w int) string {
+func renderProfileSection(ds *state.Dashboard, w, h int) string {
 	var body string
 	switch ds.Profile.Status {
 	case state.StatusDone:
@@ -501,8 +553,14 @@ func renderProfileSection(ds *state.Dashboard, w int) string {
 			StatChip("pkg", truncate(ds.Profile.TargetPackage, w-24)),
 		)
 		preview := strings.Split(strings.TrimSpace(ds.Profile.Flamegraph), "\n")
-		if len(preview) > 4 {
-			preview = preview[:4]
+
+		maxLines := h - 4
+		if maxLines < 1 {
+			maxLines = 1
+		}
+
+		if len(preview) > maxLines {
+			preview = preview[:maxLines]
 		}
 		if len(preview) == 0 {
 			body = header
@@ -516,7 +574,7 @@ func renderProfileSection(ds *state.Dashboard, w int) string {
 	default:
 		body = "  " + StatusIdle.Render("○ idle — press <p>")
 	}
-	return RenderSection("CPU Profile", body, w)
+	return RenderSection("CPU Profile", body, w, h)
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
